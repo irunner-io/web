@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta
+      name="description"
+      content="iRunner lets enterprise teams keep GitHub Actions while running isolated self-hosted runners in their own AWS account."
+    >
+    <title>iRunner | Enterprise GitHub Actions Runners in Your AWS Account</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap"
+      rel="stylesheet"
+    >
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="brand" href="#top" aria-label="iRunner home">
+        <span class="brand-mark">ir</span>
+        <span>iRunner</span>
+      </a>
+      <nav class="nav-links" aria-label="Main navigation">
+        <a href="#actions">Actions compatible</a>
+        <a href="#enterprise">Enterprise</a>
+        <a href="#platform">Platform</a>
+        <a href="#deploy">Deploy</a>
+      </nav>
+      <a class="header-action" href="https://github.com/irunner-io/ir">GitHub</a>
+      <button class="nav-toggle" type="button" aria-label="Open menu" aria-expanded="false">
+        <span></span>
+        <span></span>
+      </button>
+    </header>
+
+    <main id="top">
+      <section class="hero" aria-labelledby="hero-title">
+        <div class="hero-copy">
+          <p class="eyebrow">// github actions runners · your aws account</p>
+          <h1 id="hero-title">Keep GitHub Actions. Run them like an enterprise platform.</h1>
+          <p class="hero-lede">
+            iRunner gives platform teams self-hosted GitHub Actions runners with private AWS deployment,
+            ephemeral workers, S3-backed cache, and enterprise controls without rewriting CI.
+          </p>
+          <div class="hero-actions">
+            <a class="button button-primary" href="#deploy">Deploy in AWS</a>
+            <a class="button button-secondary" href="#actions">See the one-line migration</a>
+          </div>
+        </div>
+
+        <div class="hero-console" aria-label="GitHub Actions migration preview">
+          <div class="console-header">
+            <span>.github/workflows/ci.yml</span>
+            <strong>one line</strong>
+          </div>
+          <pre><code>jobs:
+  build:
+-   runs-on: ubuntu-latest
++   runs-on: ir-linux-medium
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/cache@v4
+      - run: npm test</code></pre>
+          <div class="console-grid" aria-label="Runner capabilities">
+            <div><span>compute</span><strong>EC2 · ECS · EKS</strong></div>
+            <div><span>cache</span><strong>S3 in-region</strong></div>
+            <div><span>network</span><strong>your VPC</strong></div>
+            <div><span>lifecycle</span><strong>ephemeral</strong></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="trust-strip" aria-label="iRunner highlights">
+        <span>GitHub App install</span>
+        <span>CloudFormation deploy</span>
+        <span>No workflow rewrite</span>
+        <span>Private AWS control plane</span>
+        <span>Enterprise-ready isolation</span>
+      </section>
+
+      <section class="section split" id="actions">
+        <div class="section-copy">
+          <p class="eyebrow">Actions compatible</p>
+          <h2>Your developers keep the CI surface they already know.</h2>
+          <p>
+            iRunner meets teams where they are: GitHub Actions YAML, Marketplace actions, existing secrets,
+            and normal pull request workflows. The platform team changes the runner substrate; application
+            teams change a label.
+          </p>
+        </div>
+        <div class="diff-card">
+          <div class="card-kicker">migration diff</div>
+          <pre><code>- runs-on: ubuntu-latest
++ runs-on: ir-linux-medium</code></pre>
+          <p>
+            Existing steps keep working, including <code>actions/cache@v4</code>, checkout, artifacts,
+            job summaries, and repo secrets.
+          </p>
+        </div>
+      </section>
+
+      <section class="section" id="enterprise">
+        <div class="section-heading">
+          <p class="eyebrow">The hard parts, handled</p>
+          <h2>Built for enterprise runner operations, not weekend runner scripts.</h2>
+          <p>
+            Self-hosting the runner binary is easy. Operating secure, elastic, observable CI capacity across
+            many repositories is the real platform problem.
+          </p>
+        </div>
+        <div class="feature-grid">
+          <article class="feature-card">
+            <span>01</span>
+            <h3>Private deployment boundary</h3>
+            <p>Control plane in private AWS networking, API Gateway for HTTPS ingress, and workers launched inside your account.</p>
+          </article>
+          <article class="feature-card">
+            <span>02</span>
+            <h3>Ephemeral workers by default</h3>
+            <p>Each job gets clean compute and a short-lived GitHub runner registration, then the worker disappears.</p>
+          </article>
+          <article class="feature-card">
+            <span>03</span>
+            <h3>S3-backed cache and artifacts</h3>
+            <p>Keep dependency caches and build outputs in-region, close to runners, without changing standard Actions steps.</p>
+          </article>
+          <article class="feature-card">
+            <span>04</span>
+            <h3>Multi-backend placement</h3>
+            <p>Use EC2 for VM isolation, ECS Fargate for serverless jobs, and EKS when Kubernetes is the right execution layer.</p>
+          </article>
+          <article class="feature-card">
+            <span>05</span>
+            <h3>Enterprise audit posture</h3>
+            <p>Runner lifecycle, cache writes, queue events, and AWS resources are designed around traceable ownership.</p>
+          </article>
+          <article class="feature-card">
+            <span>06</span>
+            <h3>Platform-owned defaults</h3>
+            <p>Ship labels such as <code>ir-linux-medium</code> so app teams do not size pools or learn new CI primitives.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="ops-panel" aria-label="Enterprise operations dashboard preview">
+        <div>
+          <p class="eyebrow">Operations view</p>
+          <h2>CI capacity you can explain to security and finance.</h2>
+          <p>
+            iRunner is designed for teams that need clear AWS ownership, predictable isolation, and enough
+            platform-level data to govern CI as shared infrastructure.
+          </p>
+        </div>
+        <div class="dashboard">
+          <div class="dashboard-top">
+            <span>irunner / org-main</span>
+            <strong>healthy</strong>
+          </div>
+          <div class="dashboard-metrics">
+            <div><span>queued</span><strong>12</strong></div>
+            <div><span>running</span><strong>84</strong></div>
+            <div><span>warm</span><strong>18</strong></div>
+          </div>
+          <div class="queue-list">
+            <div><span>ir-linux-small</span><strong>EC2</strong></div>
+            <div><span>ir-linux-medium</span><strong>ECS</strong></div>
+            <div><span>ir-eks-2cpu-8g</span><strong>EKS</strong></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="platform">
+        <div class="section-heading">
+          <p class="eyebrow">Platform</p>
+          <h2>One GitHub App. One control plane. Multiple execution backends.</h2>
+        </div>
+        <div class="timeline">
+          <article>
+            <span>1</span>
+            <h3>GitHub queues a job</h3>
+            <p>A <code>workflow_job.queued</code> webhook reaches iRunner.</p>
+          </article>
+          <article>
+            <span>2</span>
+            <h3>iRunner chooses capacity</h3>
+            <p>Labels map to EC2, ECS, or EKS capacity with just-in-time runner registration.</p>
+          </article>
+          <article>
+            <span>3</span>
+            <h3>The worker runs the job</h3>
+            <p>The runner uses GitHub Actions normally while cache and artifact traffic stays close to AWS.</p>
+          </article>
+          <article>
+            <span>4</span>
+            <h3>The worker is cleaned up</h3>
+            <p>State returns to iRunner and AWS services; the job compute does not become a long-lived runner.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="deploy" id="deploy">
+        <div>
+          <p class="eyebrow">Install path</p>
+          <h2>Three steps. One label to migrate.</h2>
+        </div>
+        <div class="install-grid">
+          <article>
+            <span>01</span>
+            <h3>Deploy the stack</h3>
+            <p>Launch the AWS stack with your VPC, subnets, and iRunner control plane image.</p>
+          </article>
+          <article>
+            <span>02</span>
+            <h3>Connect GitHub</h3>
+            <p>Use the setup wizard to create and install the GitHub App for your organization.</p>
+          </article>
+          <article>
+            <span>03</span>
+            <h3>Change one label</h3>
+            <p>Move jobs from <code>ubuntu-latest</code> to an enterprise-owned iRunner label.</p>
+          </article>
+        </div>
+        <div class="deploy-actions">
+          <a class="button button-primary" href="https://github.com/irunner-io/ir">View GitHub repo</a>
+          <a class="button button-secondary" href="#top">Back to top</a>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div>
+        <a class="brand" href="#top" aria-label="iRunner home">
+          <span class="brand-mark">ir</span>
+          <span>iRunner</span>
+        </a>
+        <p>Enterprise GitHub Actions runners in your AWS account.</p>
+      </div>
+      <div class="footer-links">
+        <a href="#actions">Actions compatible</a>
+        <a href="#enterprise">Enterprise</a>
+        <a href="#platform">Platform</a>
+        <a href="https://github.com/irunner-io/ir">GitHub</a>
+      </div>
+    </footer>
+
+    <script src="script.js"></script>
+  </body>
+</html>
