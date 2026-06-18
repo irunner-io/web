@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Air-Gap &amp; Licensing — iRunner Docs</title>
+    <link rel="stylesheet" href="../../docs.css">
+  </head>
+  <body>
+    <header class="docs-header">
+      <div class="docs-header-inner">
+        <a class="logo" href="/"><span class="logo-mark">ir</span><span class="logo-text">iRunner</span></a>
+        <span class="docs-label">Docs</span>
+        <nav class="docs-header-nav">
+          <a href="/docs">Home</a>
+          <a href="/docs/quickstart">Quickstart</a>
+          <a href="https://github.com/irunner-io/ir">GitHub</a>
+        </nav>
+      </div>
+    </header>
+    <div class="docs-layout">
+      <aside class="docs-sidebar">
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Getting started</div>
+          <a class="sidebar-link" href="/docs">Overview</a>
+          <a class="sidebar-link" href="/docs/quickstart">Quickstart</a>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Compute</div>
+          <a class="sidebar-link" href="/docs/compute/ec2">EC2 runners</a>
+          <a class="sidebar-link" href="/docs/compute/ecs">ECS Fargate</a>
+          <a class="sidebar-link" href="/docs/compute/eks">EKS pods</a>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Features</div>
+          <a class="sidebar-link" href="/docs/features/pools-and-labels">Pools &amp; labels</a>
+          <a class="sidebar-link" href="/docs/features/label-patterns">Label patterns</a>
+          <a class="sidebar-link" href="/docs/features/warm-pools">Warm pools</a>
+          <a class="sidebar-link" href="/docs/features/spot-instances">Spot instances</a>
+          <a class="sidebar-link" href="/docs/features/s3-cache">S3 cache</a>
+          <a class="sidebar-link" href="/docs/features/docker-layer-cache">Docker layer cache</a>
+          <a class="sidebar-link" href="/docs/features/custom-images">Custom images</a>
+          <a class="sidebar-link" href="/docs/features/arm64">ARM64 / Graviton</a>
+          <a class="sidebar-link" href="/docs/features/ephemeral-runners">Ephemeral runners</a>
+          <a class="sidebar-link" href="/docs/features/cost-tracking">Per-job cost tracking</a>
+          <a class="sidebar-link" href="/docs/features/observability">Observability</a>
+          <a class="sidebar-link active" href="/docs/features/air-gap">Air-gap &amp; licensing</a>
+          <a class="sidebar-link" href="/docs/features/security">Security model</a>
+          <a class="sidebar-link" href="/docs/features/multi-platform">Multi-platform support</a>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Operations</div>
+          <a class="sidebar-link" href="/docs/operations/deployment">Deployment</a>
+          <a class="sidebar-link" href="/docs/operations/upgrades">Upgrades</a>
+          <a class="sidebar-link" href="/docs/operations/monitoring">Monitoring</a>
+          <a class="sidebar-link" href="/docs/operations/troubleshooting">Troubleshooting</a>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Reference</div>
+          <a class="sidebar-link" href="/docs/reference/config">config.yaml</a>
+          <a class="sidebar-link" href="/docs/reference/cli">CLI reference</a>
+          <a class="sidebar-link" href="/docs/reference/api">API endpoints</a>
+          <a class="sidebar-link" href="/docs/reference/changelog">Changelog</a>
+        </div>
+      </aside>
+      <main class="docs-content">
+        <nav class="breadcrumbs">
+          <a href="/docs">Docs</a><span class="sep">/</span>Features<span class="sep">/</span>Air-gap &amp; licensing
+        </nav>
+        <article class="article">
+          <h1>Air-Gap &amp; Licensing</h1>
+          <p class="article-intro">iRunner operates fully disconnected from iRunner's servers. There is no phone-home requirement. Licensing is enforced locally via Ed25519 signed keys that are validated entirely on your infrastructure.</p>
+
+          <h2>No phone-home</h2>
+          <p>iRunner never contacts any external licensing server. The control plane validates the license key locally at startup and enforces limits without any network call. This means:</p>
+          <ul>
+            <li>Full air-gap support &mdash; works in isolated VPCs with no internet access (apart from GitHub API for runner registration)</li>
+            <li>No telemetry, analytics, or usage reporting sent externally</li>
+            <li>No dependency on iRunner's infrastructure for operation</li>
+            <li>License validation works even if DNS is restricted</li>
+          </ul>
+
+          <h2>License structure</h2>
+          <p>The license key is a signed JWT containing claims about your entitlements:</p>
+          <table>
+            <tr><th>Claim</th><th>Description</th><th>Example</th></tr>
+            <tr><td><code>customer</code></td><td>Customer organization name</td><td><code>Acme Corp</code></td></tr>
+            <tr><td><code>plan</code></td><td>License tier</td><td><code>team</code>, <code>enterprise</code></td></tr>
+            <tr><td><code>exp</code></td><td>Expiration date (Unix timestamp)</td><td><code>1735689600</code></td></tr>
+            <tr><td><code>max_concurrency</code></td><td>Maximum concurrent runners</td><td><code>50</code></td></tr>
+            <tr><td><code>features</code></td><td>Enabled feature flags</td><td><code>["cache", "docker_cache", "warm_pools"]</code></td></tr>
+          </table>
+
+          <h2>License validation</h2>
+          <p>The license is validated using Ed25519 public-key cryptography:</p>
+          <ol>
+            <li>iRunner's build embeds the Ed25519 public key</li>
+            <li>At startup, the control plane reads the license key from config or environment</li>
+            <li>The JWT signature is verified against the embedded public key</li>
+            <li>Claims are checked: expiration, concurrency limits, feature flags</li>
+            <li>If validation passes, the system starts normally</li>
+            <li>If validation fails (expired, invalid signature), the system logs the error and refuses to start</li>
+          </ol>
+
+          <div class="callout callout-note">
+            <div class="callout-title">Note</div>
+            <p>The Ed25519 signature cannot be forged without the private key (held only by iRunner). Modifying any claim in the JWT invalidates the signature.</p>
+          </div>
+
+          <h2>Trial mode</h2>
+          <p>iRunner includes a built-in trial that requires no license key:</p>
+          <table>
+            <tr><th>Limit</th><th>Value</th></tr>
+            <tr><td>Duration</td><td>14 days from first job</td></tr>
+            <tr><td>Total jobs</td><td>500</td></tr>
+            <tr><td>Max concurrency</td><td>5 runners</td></tr>
+            <tr><td>Features</td><td>All features enabled</td></tr>
+          </table>
+          <p>No registration, credit card, or contact with iRunner is required to start the trial. Deploy the stack and run jobs immediately.</p>
+
+          <h2>Providing the license key</h2>
+          <p>The license key is a base64-encoded string. Provide it via environment variable or config.yaml:</p>
+
+          <h3>Option 1: Environment variable</h3>
+          <div class="code-block">
+            <div class="code-block-header">Terminal</div>
+            <pre><code># Store in AWS Secrets Manager (recommended)
+aws secretsmanager create-secret \
+  --name ir-west/license-key \
+  --secret-string "eyJhbGciOiJFZDI1NTE5Ii..."
+
+# The CloudFormation stack reads this secret automatically</code></pre>
+          </div>
+
+          <h3>Option 2: config.yaml</h3>
+          <div class="code-block">
+            <div class="code-block-header">config.yaml</div>
+            <pre><code>license:
+  key: "eyJhbGciOiJFZDI1NTE5IiwidHlwIjoiSldUIn0.eyJjdXN0b21lciI6IkFjbWUgQ29ycCIsInBsYW4iOiJlbnRlcnByaXNlIiwiZXhwIjoxNzM1Njg5NjAwLCJtYXhfY29uY3VycmVuY3kiOjUwLCJmZWF0dXJlcyI6WyJjYWNoZSIsImRvY2tlcl9jYWNoZSIsIndhcm1fcG9vbHMiXX0.SIGNATURE"</code></pre>
+          </div>
+
+          <h2>Enforcement behavior</h2>
+          <p>When license limits are reached:</p>
+          <table>
+            <tr><th>Condition</th><th>Behavior</th></tr>
+            <tr><td>License expired</td><td>Control plane refuses to start; logs error</td></tr>
+            <tr><td>Max concurrency reached</td><td>New jobs are queued until a runner becomes available</td></tr>
+            <tr><td>Trial job limit reached</td><td>New jobs are rejected with an error; existing jobs complete</td></tr>
+            <tr><td>Feature not licensed</td><td>Feature-specific config sections are ignored</td></tr>
+          </table>
+
+          <h2>License renewal</h2>
+          <p>When your license approaches expiration:</p>
+          <ol>
+            <li>The control plane logs warnings starting 30 days before expiration</li>
+            <li>A metric <code>ir_license_days_remaining</code> is emitted for alerting</li>
+            <li>To renew: update the secret in Secrets Manager with the new key and restart the control plane (or wait for the next config reload)</li>
+          </ol>
+
+          <div class="callout callout-tip">
+            <div class="callout-title">Tip</div>
+            <p>Set up an alert on <code>ir_license_days_remaining &lt; 14</code> to get notified before your license expires.</p>
+          </div>
+
+          <div class="page-nav">
+            <a href="/docs/features/observability">&larr; Observability</a>
+            <a href="/docs/features/security">Security model &rarr;</a>
+          </div>
+        </article>
+      </main>
+    </div>
+  </body>
+</html>

@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>EKS pods — iRunner Docs</title>
+    <link rel="stylesheet" href="../../docs.css">
+  </head>
+  <body>
+    <header class="docs-header">
+      <div class="docs-header-inner">
+        <a class="logo" href="/"><span class="logo-mark">ir</span><span class="logo-text">iRunner</span></a>
+        <span class="docs-label">Docs</span>
+        <nav class="docs-header-nav">
+          <a href="/docs">Home</a>
+          <a href="/docs/quickstart">Quickstart</a>
+          <a href="https://github.com/irunner-io/ir">GitHub</a>
+        </nav>
+      </div>
+    </header>
+    <div class="docs-layout">
+      <aside class="docs-sidebar">
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Getting started</div>
+          <a class="sidebar-link" href="/docs">Overview</a>
+          <a class="sidebar-link" href="/docs/quickstart">Quickstart</a>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Compute</div>
+          <a class="sidebar-link" href="/docs/compute/ec2">EC2 runners</a>
+          <a class="sidebar-link" href="/docs/compute/ecs">ECS Fargate</a>
+          <a class="sidebar-link active" href="/docs/compute/eks">EKS pods</a>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Features</div>
+          <a class="sidebar-link" href="/docs/features/pools-and-labels">Pools &amp; labels</a>
+          <a class="sidebar-link" href="/docs/features/label-patterns">Label patterns</a>
+          <a class="sidebar-link" href="/docs/features/warm-pools">Warm pools</a>
+          <a class="sidebar-link" href="/docs/features/spot-instances">Spot instances</a>
+          <a class="sidebar-link" href="/docs/features/s3-cache">S3 cache</a>
+          <a class="sidebar-link" href="/docs/features/docker-layer-cache">Docker layer cache</a>
+          <a class="sidebar-link" href="/docs/features/custom-images">Custom images</a>
+          <a class="sidebar-link" href="/docs/features/arm64">ARM64 / Graviton</a>
+          <a class="sidebar-link" href="/docs/features/ephemeral-runners">Ephemeral runners</a>
+          <a class="sidebar-link" href="/docs/features/cost-tracking">Per-job cost tracking</a>
+          <a class="sidebar-link" href="/docs/features/observability">Observability</a>
+          <a class="sidebar-link" href="/docs/features/air-gap">Air-gap &amp; licensing</a>
+          <a class="sidebar-link" href="/docs/features/security">Security model</a>
+          <a class="sidebar-link" href="/docs/features/multi-platform">Multi-platform support</a>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Operations</div>
+          <a class="sidebar-link" href="/docs/operations/deployment">Deployment</a>
+          <a class="sidebar-link" href="/docs/operations/upgrades">Upgrades</a>
+          <a class="sidebar-link" href="/docs/operations/monitoring">Monitoring</a>
+          <a class="sidebar-link" href="/docs/operations/troubleshooting">Troubleshooting</a>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Reference</div>
+          <a class="sidebar-link" href="/docs/reference/config">config.yaml</a>
+          <a class="sidebar-link" href="/docs/reference/cli">CLI reference</a>
+          <a class="sidebar-link" href="/docs/reference/api">API endpoints</a>
+          <a class="sidebar-link" href="/docs/reference/changelog">Changelog</a>
+        </div>
+      </aside>
+      <main class="docs-content">
+        <nav class="breadcrumbs">
+          <a href="/docs">Docs</a><span class="sep">/</span>Compute<span class="sep">/</span>EKS pods
+        </nav>
+        <article class="article">
+          <h1>EKS pods</h1>
+          <p class="article-intro">EKS is iRunner's Kubernetes-native compute backend. Jobs run as ephemeral pods in your existing EKS cluster, leveraging your cluster autoscaler, node pools, and Kubernetes-native tooling for maximum flexibility.</p>
+
+          <h2>Overview</h2>
+          <p>When a workflow job targets an EKS pool, iRunner creates a pod in your cluster's designated namespace, runs the GitHub Actions runner inside it, and deletes the pod when the job completes. This integrates naturally with your existing Kubernetes infrastructure — node autoscaling, RBAC, network policies, and observability all work as expected.</p>
+
+          <div class="callout callout-tip">
+            <div class="callout-title">Best for</div>
+            <p>Teams with existing Kubernetes clusters, fine-grained resource control, sidecar patterns, GPU/ARM node affinity, and environments where Kubernetes is the standard deployment platform.</p>
+          </div>
+
+          <h2>Prerequisites</h2>
+          <ul>
+            <li>An existing EKS cluster with at least one node group</li>
+            <li>Cluster autoscaler (Karpenter or Cluster Autoscaler) for dynamic scaling</li>
+            <li>iRunner control plane has RBAC access to create/delete pods in the target namespace</li>
+            <li>A Kubernetes service account with appropriate IAM roles (IRSA)</li>
+          </ul>
+
+          <h2>Configuration fields</h2>
+          <table>
+            <tr><th>Field</th><th>Required</th><th>Description</th></tr>
+            <tr><td><code>driver</code></td><td>Yes</td><td>Must be <code>eks</code></td></tr>
+            <tr><td><code>eks.cluster_name</code></td><td>Yes</td><td>Name of the EKS cluster</td></tr>
+            <tr><td><code>eks.namespace</code></td><td>No</td><td>Kubernetes namespace for runner pods (default: <code>ir-runners</code>)</td></tr>
+            <tr><td><code>eks.service_account</code></td><td>No</td><td>Service account for pods (default: <code>ir-runner</code>)</td></tr>
+            <tr><td><code>eks.image</code></td><td>No</td><td>Container image for runner (defaults to iRunner's managed image)</td></tr>
+            <tr><td><code>eks.node_selector</code></td><td>No</td><td>Node selector labels for pod scheduling</td></tr>
+            <tr><td><code>eks.tolerations</code></td><td>No</td><td>Tolerations for tainted nodes (GPU, ARM, spot, etc.)</td></tr>
+            <tr><td><code>eks.resources.cpu</code></td><td>No</td><td>CPU request/limit (default: <code>2</code>)</td></tr>
+            <tr><td><code>eks.resources.memory</code></td><td>No</td><td>Memory request/limit (default: <code>4Gi</code>)</td></tr>
+          </table>
+
+          <h2>Cluster autoscaler integration</h2>
+          <p>EKS pools rely on your cluster autoscaler to provision nodes when pod demand exceeds capacity. iRunner simply creates pods — scaling is handled by:</p>
+          <ul>
+            <li><strong>Karpenter</strong> — recommended. Launches right-sized nodes in seconds based on pod requirements.</li>
+            <li><strong>Cluster Autoscaler</strong> — scales existing node groups based on pending pods.</li>
+          </ul>
+          <div class="callout callout-tip">
+            <div class="callout-title">Tip</div>
+            <p>With Karpenter, configure provisioners that match your runner workloads. A dedicated provisioner for CI pods ensures runners don't compete with production workloads for node capacity.</p>
+          </div>
+
+          <h2>Pod security contexts</h2>
+          <p>Runner pods run as non-root by default with a restricted security context:</p>
+          <div class="code-block">
+            <div class="code-block-header">Generated pod spec (simplified)</div>
+            <pre><code>securityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 1000
+  seccompProfile:
+    type: RuntimeDefault</code></pre>
+          </div>
+          <p>This is compatible with most Pod Security Standards. If your workload needs elevated privileges (e.g., for Docker-in-Docker), use EC2 pools instead.</p>
+
+          <h2>Node affinity for GPU or ARM</h2>
+          <p>Use <code>node_selector</code> and <code>tolerations</code> to target specific node types:</p>
+          <div class="code-block">
+            <div class="code-block-header">config.yaml (GPU pool excerpt)</div>
+            <pre><code>eks:
+  node_selector:
+    nvidia.com/gpu: "true"
+    kubernetes.io/arch: amd64
+  tolerations:
+    - key: nvidia.com/gpu
+      operator: Exists
+      effect: NoSchedule</code></pre>
+          </div>
+          <div class="code-block">
+            <div class="code-block-header">config.yaml (ARM64 pool excerpt)</div>
+            <pre><code>eks:
+  node_selector:
+    kubernetes.io/arch: arm64
+  tolerations:
+    - key: arch
+      value: arm64
+      effect: NoSchedule</code></pre>
+          </div>
+
+          <h2>Full pool configuration example</h2>
+          <div class="code-block">
+            <div class="code-block-header">config.yaml</div>
+            <pre><code>pools:
+  - name: eks-small
+    driver: eks
+    labels:
+      - ir-eks-small
+      - ir-k8s
+    eks:
+      cluster_name: "production-cluster"
+      namespace: "ir-runners"
+      service_account: "ir-runner"
+      image: "123456789012.dkr.ecr.us-east-1.amazonaws.com/ir-runner:latest"
+      resources:
+        cpu: "2"
+        memory: "4Gi"
+      node_selector:
+        workload-type: ci
+      tolerations:
+        - key: dedicated
+          value: ci-runners
+          effect: NoSchedule</code></pre>
+          </div>
+
+          <h2>Workflow usage</h2>
+          <div class="code-block">
+            <div class="code-block-header">.github/workflows/ci.yml</div>
+            <pre><code>jobs:
+  test:
+    runs-on: ir-eks-small
+    steps:
+      - uses: actions/checkout@v4
+      - run: go test ./...
+
+  build-arm:
+    runs-on: ir-eks-arm64
+    steps:
+      - uses: actions/checkout@v4
+      - run: make build-arm64</code></pre>
+          </div>
+
+          <h2>Cold start times</h2>
+          <table>
+            <tr><th>Scenario</th><th>Cold start</th></tr>
+            <tr><td>Node available, image cached</td><td>10-20 seconds</td></tr>
+            <tr><td>Node available, image pull required</td><td>20-45 seconds</td></tr>
+            <tr><td>Node scale-up required (Karpenter)</td><td>60-90 seconds</td></tr>
+            <tr><td>Node scale-up required (Cluster Autoscaler)</td><td>90-180 seconds</td></tr>
+          </table>
+
+          <div class="callout callout-tip">
+            <div class="callout-title">Tip</div>
+            <p>For fast cold starts, keep at least one warm node in your CI node group and pre-pull runner images using a DaemonSet. This ensures pods schedule instantly without waiting for image pulls or node provisioning.</p>
+          </div>
+
+          <h2>Sidecar patterns</h2>
+          <p>EKS pools support sidecar containers for common CI patterns. Configure additional containers that run alongside the runner:</p>
+          <ul>
+            <li><strong>Database sidecars</strong> — PostgreSQL, MySQL, Redis for integration tests</li>
+            <li><strong>Service mesh</strong> — Envoy/Istio proxies for service-to-service testing</li>
+            <li><strong>Log collectors</strong> — Fluent Bit or custom log shippers</li>
+          </ul>
+
+          <h2>IRSA (IAM Roles for Service Accounts)</h2>
+          <p>Grant runner pods AWS permissions via IAM Roles for Service Accounts. This is the recommended approach over instance profiles:</p>
+          <div class="code-block">
+            <div class="code-block-header">Service account annotation</div>
+            <pre><code>apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ir-runner
+  namespace: ir-runners
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::123456789012:role/ir-eks-runner-role</code></pre>
+          </div>
+
+          <h2>Limitations</h2>
+          <ul>
+            <li><strong>No Docker-in-Docker by default</strong> — pods run as non-root. Use Docker-outside-of-Docker (bind mount) or Kaniko for image builds.</li>
+            <li><strong>Cluster dependency</strong> — requires a healthy EKS cluster. Cluster issues affect runner availability.</li>
+            <li><strong>Resource contention</strong> — runner pods share cluster resources. Use dedicated node groups or resource quotas to prevent contention with production workloads.</li>
+          </ul>
+
+          <div class="page-nav">
+            <a href="/docs/compute/ecs">&larr; ECS Fargate</a>
+            <a href="/docs/features/pools-and-labels">Pools &amp; labels &rarr;</a>
+          </div>
+        </article>
+      </main>
+    </div>
+  </body>
+</html>

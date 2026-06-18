@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Multi-Platform Support — iRunner Docs</title>
+    <link rel="stylesheet" href="../../docs.css">
+  </head>
+  <body>
+    <header class="docs-header">
+      <div class="docs-header-inner">
+        <a class="logo" href="/"><span class="logo-mark">ir</span><span class="logo-text">iRunner</span></a>
+        <span class="docs-label">Docs</span>
+        <nav class="docs-header-nav">
+          <a href="/docs">Home</a>
+          <a href="/docs/quickstart">Quickstart</a>
+          <a href="https://github.com/irunner-io/ir">GitHub</a>
+        </nav>
+      </div>
+    </header>
+    <div class="docs-layout">
+      <aside class="docs-sidebar">
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Getting started</div>
+          <a class="sidebar-link" href="/docs">Overview</a>
+          <a class="sidebar-link" href="/docs/quickstart">Quickstart</a>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Compute</div>
+          <a class="sidebar-link" href="/docs/compute/ec2">EC2 runners</a>
+          <a class="sidebar-link" href="/docs/compute/ecs">ECS Fargate</a>
+          <a class="sidebar-link" href="/docs/compute/eks">EKS pods</a>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Features</div>
+          <a class="sidebar-link" href="/docs/features/pools-and-labels">Pools &amp; labels</a>
+          <a class="sidebar-link" href="/docs/features/label-patterns">Label patterns</a>
+          <a class="sidebar-link" href="/docs/features/warm-pools">Warm pools</a>
+          <a class="sidebar-link" href="/docs/features/spot-instances">Spot instances</a>
+          <a class="sidebar-link" href="/docs/features/s3-cache">S3 cache</a>
+          <a class="sidebar-link" href="/docs/features/docker-layer-cache">Docker layer cache</a>
+          <a class="sidebar-link" href="/docs/features/custom-images">Custom images</a>
+          <a class="sidebar-link" href="/docs/features/arm64">ARM64 / Graviton</a>
+          <a class="sidebar-link" href="/docs/features/ephemeral-runners">Ephemeral runners</a>
+          <a class="sidebar-link" href="/docs/features/cost-tracking">Per-job cost tracking</a>
+          <a class="sidebar-link" href="/docs/features/observability">Observability</a>
+          <a class="sidebar-link" href="/docs/features/air-gap">Air-gap &amp; licensing</a>
+          <a class="sidebar-link" href="/docs/features/security">Security model</a>
+          <a class="sidebar-link active" href="/docs/features/multi-platform">Multi-platform support</a>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Operations</div>
+          <a class="sidebar-link" href="/docs/operations/deployment">Deployment</a>
+          <a class="sidebar-link" href="/docs/operations/upgrades">Upgrades</a>
+          <a class="sidebar-link" href="/docs/operations/monitoring">Monitoring</a>
+          <a class="sidebar-link" href="/docs/operations/troubleshooting">Troubleshooting</a>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Reference</div>
+          <a class="sidebar-link" href="/docs/reference/config">config.yaml</a>
+          <a class="sidebar-link" href="/docs/reference/cli">CLI reference</a>
+          <a class="sidebar-link" href="/docs/reference/api">API endpoints</a>
+          <a class="sidebar-link" href="/docs/reference/changelog">Changelog</a>
+        </div>
+      </aside>
+      <main class="docs-content">
+        <nav class="breadcrumbs">
+          <a href="/docs">Docs</a><span class="sep">/</span>Features<span class="sep">/</span>Multi-platform support
+        </nav>
+        <article class="article">
+          <h1>Multi-Platform Support</h1>
+          <p class="article-intro">iRunner supports GitHub Actions, GitLab CI, and Harness CI from a single deployment. The same compute pools serve all platforms &mdash; platform adapters handle the protocol translation between each CI system and iRunner's orchestration layer.</p>
+
+          <h2>Supported platforms</h2>
+          <table>
+            <tr><th>Platform</th><th>Status</th><th>Integration method</th></tr>
+            <tr><td>GitHub Actions</td><td>Primary (GA)</td><td>Webhook + GitHub App</td></tr>
+            <tr><td>GitLab CI</td><td>Adapter</td><td>GitLab runner protocol translation</td></tr>
+            <tr><td>Harness CI</td><td>Adapter</td><td>Delegate integration (port 3000)</td></tr>
+          </table>
+
+          <h2>Architecture</h2>
+          <p>Each platform has an adapter that translates its native protocol into iRunner's internal job format:</p>
+          <div class="code-block">
+            <div class="code-block-header">Platform adapter flow</div>
+            <pre><code>GitHub Actions:
+  GitHub webhook → GitHub Adapter → Orchestrator → Pool → Runner
+
+GitLab CI:
+  GitLab Runner API ← GitLab Adapter → Orchestrator → Pool → Runner
+
+Harness CI:
+  Harness Delegate → port 3000 → Harness Adapter → Orchestrator → Pool → Runner</code></pre>
+          </div>
+          <p>The orchestrator and pool layer are shared &mdash; a single pool can serve jobs from any platform.</p>
+
+          <h2>GitHub Actions (primary)</h2>
+          <p>GitHub Actions is the primary platform and uses the standard webhook-based flow:</p>
+          <ol>
+            <li>GitHub sends a <code>workflow_job</code> webhook when a job is queued</li>
+            <li>The GitHub adapter validates the webhook (HMAC) and extracts the label</li>
+            <li>The orchestrator resolves the label to a pool and provisions a runner</li>
+            <li>The runner registers with GitHub using a JIT token and executes the job</li>
+          </ol>
+          <p>See the <a href="/docs/quickstart">Quickstart</a> for full GitHub Actions setup instructions.</p>
+
+          <h2>GitLab CI</h2>
+          <p>The GitLab adapter acts as a replacement for <code>gitlab-runner</code>. It registers with your GitLab instance as a runner and translates the GitLab runner protocol to iRunner's internal format.</p>
+
+          <h3>How it works</h3>
+          <ol>
+            <li>The GitLab adapter polls GitLab for pending jobs (like a standard gitlab-runner)</li>
+            <li>When a job is received, it extracts resource requirements from the job's <code>tags</code></li>
+            <li>Tags are mapped to iRunner pools (similar to label_mappings)</li>
+            <li>A runner is provisioned from the matched pool</li>
+            <li>The adapter provides a GitHub Actions compatibility layer so the runner can execute GitLab CI steps</li>
+          </ol>
+
+          <h3>Configuration</h3>
+          <div class="code-block">
+            <div class="code-block-header">config.yaml</div>
+            <pre><code>adapters:
+  gitlab:
+    enabled: true
+    url: "https://gitlab.example.com"
+    token_secret: "ir-west/gitlab-runner-token"  # Secrets Manager reference
+    tag_mappings:
+      ir-large: linux-large       # GitLab tag → iRunner pool
+      ir-docker: linux-docker
+      ir-arm64: linux-arm64
+    poll_interval: 5s
+    max_concurrent: 20</code></pre>
+          </div>
+
+          <h3>GitLab CI workflow example</h3>
+          <div class="code-block">
+            <div class="code-block-header">.gitlab-ci.yml</div>
+            <pre><code>build:
+  tags:
+    - ir-large              # Resolved to iRunner pool
+  script:
+    - make build
+    - make test
+
+deploy:
+  tags:
+    - ir-docker
+  script:
+    - docker build -t myapp .
+    - docker push myapp:latest</code></pre>
+          </div>
+
+          <h2>Harness CI</h2>
+          <p>The Harness adapter integrates with Harness CI's delegate model. The iRunner control plane exposes a local endpoint on port 3000 that the Harness delegate connects to for runner provisioning.</p>
+
+          <h3>How it works</h3>
+          <ol>
+            <li>The Harness delegate runs alongside iRunner (or in the same VPC)</li>
+            <li>When a Harness CI pipeline stage requires VM infrastructure, the delegate calls iRunner on port 3000</li>
+            <li>iRunner receives the setup request, provisions a runner from the appropriate pool</li>
+            <li>Steps are delivered to the runner via the delegate's step execution protocol</li>
+            <li>On completion, iRunner destroys the runner</li>
+          </ol>
+
+          <h3>Configuration</h3>
+          <div class="code-block">
+            <div class="code-block-header">config.yaml</div>
+            <pre><code>adapters:
+  harness:
+    enabled: true
+    listen_port: 3000
+    pool_mappings:
+      # Harness infra definition → iRunner pool
+      linux-medium: linux-large
+      linux-large: linux-xlarge
+      docker: linux-docker</code></pre>
+          </div>
+
+          <h3>Harness pipeline example</h3>
+          <div class="code-block">
+            <div class="code-block-header">Harness pipeline (VM infrastructure)</div>
+            <pre><code>stages:
+  - stage:
+      name: Build
+      type: CI
+      spec:
+        infrastructure:
+          type: VM
+          spec:
+            pool_name: linux-medium    # Mapped to iRunner pool
+        execution:
+          steps:
+            - step:
+                type: Run
+                spec:
+                  command: make build</code></pre>
+          </div>
+
+          <h2>Shared compute pools</h2>
+          <p>All three platforms use the same underlying pool definitions. A pool named <code>linux-large</code> can serve:</p>
+          <ul>
+            <li>GitHub Actions jobs with <code>runs-on: ir-large</code></li>
+            <li>GitLab CI jobs with <code>tags: [ir-large]</code></li>
+            <li>Harness CI stages with <code>pool_name: linux-large</code></li>
+          </ul>
+          <p>This means you manage one set of compute infrastructure regardless of how many CI platforms your organization uses.</p>
+
+          <div class="callout callout-note">
+            <div class="callout-title">Note</div>
+            <p>Platform adapters are independent &mdash; you can enable just GitHub Actions, or any combination of the three. Each adapter is configured separately in the <code>adapters</code> section of config.yaml.</p>
+          </div>
+
+          <h2>Feature compatibility matrix</h2>
+          <table>
+            <tr><th>Feature</th><th>GitHub Actions</th><th>GitLab CI</th><th>Harness CI</th></tr>
+            <tr><td>EC2 runners</td><td>Yes</td><td>Yes</td><td>Yes</td></tr>
+            <tr><td>ECS Fargate</td><td>Yes</td><td>Yes</td><td>Yes</td></tr>
+            <tr><td>EKS pods</td><td>Yes</td><td>Yes</td><td>Yes</td></tr>
+            <tr><td>S3 cache</td><td>Yes (ir-cache action)</td><td>Yes (built-in)</td><td>Yes (built-in)</td></tr>
+            <tr><td>Docker layer cache</td><td>Yes</td><td>Yes</td><td>Yes</td></tr>
+            <tr><td>Warm pools</td><td>Yes</td><td>Yes</td><td>Yes</td></tr>
+            <tr><td>Spot instances</td><td>Yes</td><td>Yes</td><td>Yes</td></tr>
+            <tr><td>ARM64</td><td>Yes</td><td>Yes</td><td>Yes</td></tr>
+            <tr><td>Label patterns</td><td>Yes</td><td>Via tags</td><td>Via pool mappings</td></tr>
+          </table>
+
+          <div class="page-nav">
+            <a href="/docs/features/security">&larr; Security model</a>
+            <a href="/docs/operations/deployment">Deployment &rarr;</a>
+          </div>
+        </article>
+      </main>
+    </div>
+  </body>
+</html>

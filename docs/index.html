@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Documentation — iRunner</title>
+    <link rel="stylesheet" href="docs.css">
+  </head>
+  <body>
+    <header class="docs-header">
+      <div class="docs-header-inner">
+        <a class="logo" href="/">
+          <span class="logo-mark">ir</span>
+          <span class="logo-text">iRunner</span>
+        </a>
+        <span class="docs-label">Docs</span>
+        <nav class="docs-header-nav">
+          <a href="/docs">Home</a>
+          <a href="/docs/quickstart">Quickstart</a>
+          <a href="https://github.com/irunner-io/ir">GitHub</a>
+        </nav>
+      </div>
+    </header>
+
+    <div class="docs-layout">
+      <aside class="docs-sidebar">
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Getting started</div>
+          <a class="sidebar-link active" href="/docs">Overview</a>
+          <a class="sidebar-link" href="/docs/quickstart">Quickstart</a>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Compute</div>
+          <a class="sidebar-link" href="/docs/compute/ec2">EC2 runners</a>
+          <a class="sidebar-link" href="/docs/compute/ecs">ECS Fargate</a>
+          <a class="sidebar-link" href="/docs/compute/eks">EKS pods</a>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Features</div>
+          <a class="sidebar-link" href="/docs/features/pools-and-labels">Pools &amp; labels</a>
+          <a class="sidebar-link" href="/docs/features/label-patterns">Label patterns</a>
+          <a class="sidebar-link" href="/docs/features/warm-pools">Warm pools</a>
+          <a class="sidebar-link" href="/docs/features/spot-instances">Spot instances</a>
+          <a class="sidebar-link" href="/docs/features/s3-cache">S3 cache</a>
+          <a class="sidebar-link" href="/docs/features/docker-layer-cache">Docker layer cache</a>
+          <a class="sidebar-link" href="/docs/features/custom-images">Custom images</a>
+          <a class="sidebar-link" href="/docs/features/arm64">ARM64 / Graviton</a>
+          <a class="sidebar-link" href="/docs/features/ephemeral-runners">Ephemeral runners</a>
+          <a class="sidebar-link" href="/docs/features/cost-tracking">Per-job cost tracking</a>
+          <a class="sidebar-link" href="/docs/features/observability">Observability</a>
+          <a class="sidebar-link" href="/docs/features/air-gap">Air-gap &amp; licensing</a>
+          <a class="sidebar-link" href="/docs/features/security">Security model</a>
+          <a class="sidebar-link" href="/docs/features/multi-platform">Multi-platform support</a>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Operations</div>
+          <a class="sidebar-link" href="/docs/operations/deployment">Deployment</a>
+          <a class="sidebar-link" href="/docs/operations/upgrades">Upgrades</a>
+          <a class="sidebar-link" href="/docs/operations/monitoring">Monitoring</a>
+          <a class="sidebar-link" href="/docs/operations/troubleshooting">Troubleshooting</a>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Reference</div>
+          <a class="sidebar-link" href="/docs/reference/config">config.yaml</a>
+          <a class="sidebar-link" href="/docs/reference/cli">CLI reference</a>
+          <a class="sidebar-link" href="/docs/reference/api">API endpoints</a>
+          <a class="sidebar-link" href="/docs/reference/changelog">Changelog</a>
+        </div>
+      </aside>
+
+      <main class="docs-content">
+        <article class="article">
+          <h1>iRunner Documentation</h1>
+          <p class="article-intro">iRunner provides intelligent, self-hosted GitHub Actions runners that execute inside your AWS account. You keep the full GitHub Actions ecosystem — workflows, marketplace actions, triggers — while running builds on infrastructure you control.</p>
+
+          <h2>How iRunner works</h2>
+          <p>iRunner sits between GitHub and your AWS infrastructure:</p>
+          <ol>
+            <li>GitHub sends a <code>workflow_job</code> webhook when a job is queued</li>
+            <li>The iRunner control plane receives the webhook and matches the <code>runs-on</code> label to a configured pool</li>
+            <li>A runner is provisioned (EC2 instance, ECS task, or EKS pod) in your VPC</li>
+            <li>The runner registers with GitHub, executes the job, and is destroyed</li>
+          </ol>
+          <p>The only public endpoint is a single webhook URL. All other communication happens over internal AWS networking.</p>
+
+          <p><img src="/docs/images/how-it-works.gif" alt="Animated diagram showing iRunner continuous compute flow: workflow jobs arrive, control plane matches labels to pools, runners spin up in private subnets, cache serves them, runners terminate" style="width:100%; border-radius:8px; border:1px solid #d1d9e0; margin:16px 0;"></p>
+
+          <h2>Architecture</h2>
+          <p>The control plane runs as an ECS service behind an Application Load Balancer. It manages:</p>
+          <ul>
+            <li><strong>Webhook ingestion</strong> — receives and validates GitHub webhooks</li>
+            <li><strong>Pool management</strong> — maintains warm capacity and provisions on demand</li>
+            <li><strong>Job routing</strong> — matches <code>runs-on</code> labels to compute pools</li>
+            <li><strong>Cache service</strong> — S3-backed cache compatible with <code>actions/cache</code></li>
+            <li><strong>Lifecycle management</strong> — terminates runners after job completion</li>
+          </ul>
+
+          <h2>Compute backends</h2>
+          <p>iRunner supports three compute backends, each suited to different workload types:</p>
+          <table>
+            <tr>
+              <th>Backend</th>
+              <th>Best for</th>
+              <th>Cold start</th>
+              <th>Isolation</th>
+            </tr>
+            <tr>
+              <td><a href="/docs/compute/ec2">EC2</a></td>
+              <td>Docker builds, GPU, large disk, custom kernels</td>
+              <td>45–90s (or instant with warm pools)</td>
+              <td>Full VM</td>
+            </tr>
+            <tr>
+              <td><a href="/docs/compute/ecs">ECS Fargate</a></td>
+              <td>Fast, lightweight jobs, no AMI management</td>
+              <td>15–30s</td>
+              <td>Container</td>
+            </tr>
+            <tr>
+              <td><a href="/docs/compute/eks">EKS</a></td>
+              <td>Teams with existing Kubernetes clusters</td>
+              <td>10–20s (on warm nodes)</td>
+              <td>Pod</td>
+            </tr>
+          </table>
+
+          <h2>Quick links</h2>
+          <ul>
+            <li><a href="/docs/quickstart">Quickstart — deploy in 15 minutes</a></li>
+            <li><a href="/docs/features/pools-and-labels">Pools &amp; labels — configure your compute</a></li>
+            <li><a href="/docs/features/s3-cache">S3 cache — faster builds with in-region caching</a></li>
+            <li><a href="/docs/features/security">Security model — how iRunner protects your builds</a></li>
+          </ul>
+        </article>
+      </main>
+    </div>
+  </body>
+</html>

@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>API endpoints — iRunner Docs</title>
+    <link rel="stylesheet" href="../../docs.css">
+  </head>
+  <body>
+    <header class="docs-header">
+      <div class="docs-header-inner">
+        <a class="logo" href="/"><span class="logo-mark">ir</span><span class="logo-text">iRunner</span></a>
+        <span class="docs-label">Docs</span>
+        <nav class="docs-header-nav">
+          <a href="/docs">Home</a>
+          <a href="/docs/quickstart">Quickstart</a>
+          <a href="https://github.com/irunner-io/ir">GitHub</a>
+        </nav>
+      </div>
+    </header>
+    <div class="docs-layout">
+      <aside class="docs-sidebar">
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Getting started</div>
+          <a class="sidebar-link" href="/docs">Overview</a>
+          <a class="sidebar-link" href="/docs/quickstart">Quickstart</a>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Compute</div>
+          <a class="sidebar-link" href="/docs/compute/ec2">EC2 runners</a>
+          <a class="sidebar-link" href="/docs/compute/ecs">ECS Fargate</a>
+          <a class="sidebar-link" href="/docs/compute/eks">EKS pods</a>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Features</div>
+          <a class="sidebar-link" href="/docs/features/pools-and-labels">Pools &amp; labels</a>
+          <a class="sidebar-link" href="/docs/features/label-patterns">Label patterns</a>
+          <a class="sidebar-link" href="/docs/features/warm-pools">Warm pools</a>
+          <a class="sidebar-link" href="/docs/features/spot-instances">Spot instances</a>
+          <a class="sidebar-link" href="/docs/features/s3-cache">S3 cache</a>
+          <a class="sidebar-link" href="/docs/features/docker-layer-cache">Docker layer cache</a>
+          <a class="sidebar-link" href="/docs/features/custom-images">Custom images</a>
+          <a class="sidebar-link" href="/docs/features/arm64">ARM64 / Graviton</a>
+          <a class="sidebar-link" href="/docs/features/ephemeral-runners">Ephemeral runners</a>
+          <a class="sidebar-link" href="/docs/features/cost-tracking">Per-job cost tracking</a>
+          <a class="sidebar-link" href="/docs/features/observability">Observability</a>
+          <a class="sidebar-link" href="/docs/features/air-gap">Air-gap &amp; licensing</a>
+          <a class="sidebar-link" href="/docs/features/security">Security model</a>
+          <a class="sidebar-link" href="/docs/features/multi-platform">Multi-platform support</a>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Operations</div>
+          <a class="sidebar-link" href="/docs/operations/deployment">Deployment</a>
+          <a class="sidebar-link" href="/docs/operations/upgrades">Upgrades</a>
+          <a class="sidebar-link" href="/docs/operations/monitoring">Monitoring</a>
+          <a class="sidebar-link" href="/docs/operations/troubleshooting">Troubleshooting</a>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Reference</div>
+          <a class="sidebar-link" href="/docs/reference/config">config.yaml</a>
+          <a class="sidebar-link" href="/docs/reference/cli">CLI reference</a>
+          <a class="sidebar-link active" href="/docs/reference/api">API endpoints</a>
+          <a class="sidebar-link" href="/docs/reference/changelog">Changelog</a>
+        </div>
+      </aside>
+      <main class="docs-content">
+        <nav class="breadcrumbs">
+          <a href="/docs">Docs</a><span class="sep">/</span>Reference<span class="sep">/</span>API endpoints
+        </nav>
+        <article class="article">
+          <h1>API endpoints</h1>
+          <p class="article-intro">HTTP endpoints exposed by the iRunner control plane. Internal endpoints are only accessible within the VPC via the internal ALB. The public ALB only forwards the webhook path; all other paths return 403.</p>
+
+          <h2>Internal endpoints</h2>
+          <p>These endpoints are accessible from within the VPC at <code>http://control-plane.&lt;prefix&gt;.internal:8080</code>.</p>
+
+          <h3>GET /health</h3>
+          <p>Returns HTTP 200 if the control plane is healthy. Used by ALB target group health checks.</p>
+          <div class="code-block">
+            <div class="code-block-header">Terminal</div>
+            <pre><code>curl -s http://control-plane.ir-west.internal:8080/health</code></pre>
+          </div>
+          <div class="code-block">
+            <div class="code-block-header">Response (200 OK)</div>
+            <pre><code>OK</code></pre>
+          </div>
+
+          <h3>GET /internal/status</h3>
+          <p>Returns JSON with license information, pool status summary, and control plane version.</p>
+          <div class="code-block">
+            <div class="code-block-header">Terminal</div>
+            <pre><code>curl -s http://control-plane.ir-west.internal:8080/internal/status | jq .</code></pre>
+          </div>
+          <div class="code-block">
+            <div class="code-block-header">Response (200 OK)</div>
+            <pre><code>{
+  "version": "0.5.4",
+  "license": {
+    "customer": "acme-corp",
+    "plan": "enterprise",
+    "expires_at": "2027-01-15T00:00:00Z",
+    "max_concurrency": 500,
+    "current_concurrency": 12
+  },
+  "pools": {
+    "total": 4,
+    "healthy": 4
+  },
+  "uptime_seconds": 86412
+}</code></pre>
+          </div>
+
+          <h3>GET /internal/pools</h3>
+          <p>Returns JSON with all pool configurations and their current capacity state.</p>
+          <div class="code-block">
+            <div class="code-block-header">Terminal</div>
+            <pre><code>curl -s http://control-plane.ir-west.internal:8080/internal/pools | jq .</code></pre>
+          </div>
+          <div class="code-block">
+            <div class="code-block-header">Response (200 OK)</div>
+            <pre><code>{
+  "pools": [
+    {
+      "name": "large-ec2",
+      "driver": "ec2",
+      "instance_type": "m7i.2xlarge",
+      "min_warm": 2,
+      "max_total": 20,
+      "active": 5,
+      "warm": 2,
+      "spot_enabled": true
+    },
+    {
+      "name": "ecs-default",
+      "driver": "ecs",
+      "size": "2vcpu-4gb",
+      "max_total": 10,
+      "active": 3,
+      "warm": 0,
+      "spot_enabled": true
+    }
+  ]
+}</code></pre>
+          </div>
+
+          <h3>GET /internal/jobs</h3>
+          <p>Returns JSON with recent jobs including status, duration, and pool assignment.</p>
+          <div class="code-block">
+            <div class="code-block-header">Terminal</div>
+            <pre><code>curl -s http://control-plane.ir-west.internal:8080/internal/jobs | jq .</code></pre>
+          </div>
+          <div class="code-block">
+            <div class="code-block-header">Response (200 OK)</div>
+            <pre><code>{
+  "jobs": [
+    {
+      "id": "job-abc123",
+      "repo": "org/my-app",
+      "workflow": "ci.yml",
+      "label": "ir-large",
+      "pool": "large-ec2",
+      "status": "completed",
+      "started_at": "2026-06-17T10:30:00Z",
+      "duration_seconds": 142
+    },
+    {
+      "id": "job-def456",
+      "repo": "org/my-app",
+      "workflow": "deploy.yml",
+      "label": "ir-fargate",
+      "pool": "ecs-default",
+      "status": "running",
+      "started_at": "2026-06-17T10:35:22Z",
+      "duration_seconds": null
+    }
+  ]
+}</code></pre>
+          </div>
+
+          <h3>GET /metrics</h3>
+          <p>Prometheus-compatible metrics endpoint. Exposes pool utilization, job latency histograms, and queue depth gauges.</p>
+          <div class="code-block">
+            <div class="code-block-header">Terminal</div>
+            <pre><code>curl -s http://control-plane.ir-west.internal:8080/metrics</code></pre>
+          </div>
+          <div class="code-block">
+            <div class="code-block-header">Response (200 OK, text/plain)</div>
+            <pre><code># HELP ir_pool_active_instances Current active instances per pool
+# TYPE ir_pool_active_instances gauge
+ir_pool_active_instances{pool="large-ec2"} 5
+ir_pool_active_instances{pool="ecs-default"} 3
+
+# HELP ir_job_duration_seconds Job execution duration
+# TYPE ir_job_duration_seconds histogram
+ir_job_duration_seconds_bucket{pool="large-ec2",le="60"} 12
+ir_job_duration_seconds_bucket{pool="large-ec2",le="120"} 45
+ir_job_duration_seconds_bucket{pool="large-ec2",le="300"} 89
+
+# HELP ir_queue_depth Current SQS queue depth
+# TYPE ir_queue_depth gauge
+ir_queue_depth{queue="jobs"} 2
+ir_queue_depth{queue="events"} 0</code></pre>
+          </div>
+
+          <h2>Public endpoint</h2>
+
+          <h3>POST /github/webhook</h3>
+          <p>GitHub webhook receiver. Validates the HMAC-SHA256 signature using the configured webhook secret. Only processes <code>workflow_job</code> events.</p>
+          <div class="code-block">
+            <div class="code-block-header">Terminal</div>
+            <pre><code># GitHub sends this automatically; manual testing example:
+curl -X POST https://webhook.ir-west.example.com/github/webhook \
+  -H "Content-Type: application/json" \
+  -H "X-GitHub-Event: workflow_job" \
+  -H "X-Hub-Signature-256: sha256=abc123..." \
+  -d @payload.json</code></pre>
+          </div>
+          <div class="code-block">
+            <div class="code-block-header">Response (200 OK)</div>
+            <pre><code>{"accepted": true}</code></pre>
+          </div>
+
+          <h2>Default deny</h2>
+          <p>All paths not listed above return HTTP 403 via the ALB default action. This applies to both the public and internal ALB listeners for unrecognized routes.</p>
+          <div class="code-block">
+            <div class="code-block-header">Terminal</div>
+            <pre><code>curl -s https://webhook.ir-west.example.com/anything-else</code></pre>
+          </div>
+          <div class="code-block">
+            <div class="code-block-header">Response (403 Forbidden)</div>
+            <pre><code>{"error": "forbidden"}</code></pre>
+          </div>
+
+          <div class="page-nav">
+            <a href="/docs/reference/cli">&larr; CLI reference</a>
+            <a href="/docs/reference/changelog">Changelog &rarr;</a>
+          </div>
+        </article>
+      </main>
+    </div>
+  </body>
+</html>

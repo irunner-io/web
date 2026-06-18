@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Warm Pools — iRunner Docs</title>
+    <link rel="stylesheet" href="../../docs.css">
+  </head>
+  <body>
+    <header class="docs-header">
+      <div class="docs-header-inner">
+        <a class="logo" href="/"><span class="logo-mark">ir</span><span class="logo-text">iRunner</span></a>
+        <span class="docs-label">Docs</span>
+        <nav class="docs-header-nav">
+          <a href="/docs">Home</a>
+          <a href="/docs/quickstart">Quickstart</a>
+          <a href="https://github.com/irunner-io/ir">GitHub</a>
+        </nav>
+      </div>
+    </header>
+    <div class="docs-layout">
+      <aside class="docs-sidebar">
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Getting started</div>
+          <a class="sidebar-link" href="/docs">Overview</a>
+          <a class="sidebar-link" href="/docs/quickstart">Quickstart</a>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Compute</div>
+          <a class="sidebar-link" href="/docs/compute/ec2">EC2 runners</a>
+          <a class="sidebar-link" href="/docs/compute/ecs">ECS Fargate</a>
+          <a class="sidebar-link" href="/docs/compute/eks">EKS pods</a>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Features</div>
+          <a class="sidebar-link" href="/docs/features/pools-and-labels">Pools &amp; labels</a>
+          <a class="sidebar-link" href="/docs/features/label-patterns">Label patterns</a>
+          <a class="sidebar-link active" href="/docs/features/warm-pools">Warm pools</a>
+          <a class="sidebar-link" href="/docs/features/spot-instances">Spot instances</a>
+          <a class="sidebar-link" href="/docs/features/s3-cache">S3 cache</a>
+          <a class="sidebar-link" href="/docs/features/docker-layer-cache">Docker layer cache</a>
+          <a class="sidebar-link" href="/docs/features/custom-images">Custom images</a>
+          <a class="sidebar-link" href="/docs/features/arm64">ARM64 / Graviton</a>
+          <a class="sidebar-link" href="/docs/features/ephemeral-runners">Ephemeral runners</a>
+          <a class="sidebar-link" href="/docs/features/cost-tracking">Per-job cost tracking</a>
+          <a class="sidebar-link" href="/docs/features/observability">Observability</a>
+          <a class="sidebar-link" href="/docs/features/air-gap">Air-gap &amp; licensing</a>
+          <a class="sidebar-link" href="/docs/features/security">Security model</a>
+          <a class="sidebar-link" href="/docs/features/multi-platform">Multi-platform support</a>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Operations</div>
+          <a class="sidebar-link" href="/docs/operations/deployment">Deployment</a>
+          <a class="sidebar-link" href="/docs/operations/upgrades">Upgrades</a>
+          <a class="sidebar-link" href="/docs/operations/monitoring">Monitoring</a>
+          <a class="sidebar-link" href="/docs/operations/troubleshooting">Troubleshooting</a>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Reference</div>
+          <a class="sidebar-link" href="/docs/reference/config">config.yaml</a>
+          <a class="sidebar-link" href="/docs/reference/cli">CLI reference</a>
+          <a class="sidebar-link" href="/docs/reference/api">API endpoints</a>
+          <a class="sidebar-link" href="/docs/reference/changelog">Changelog</a>
+        </div>
+      </aside>
+      <main class="docs-content">
+        <nav class="breadcrumbs">
+          <a href="/docs">Docs</a><span class="sep">/</span>Features<span class="sep">/</span>Warm pools
+        </nav>
+        <article class="article">
+          <h1>Warm Pools</h1>
+          <p class="article-intro">Warm pools keep pre-provisioned runners idle and ready to accept jobs instantly. By maintaining a minimum number of warm runners, you eliminate cold-start latency at the cost of keeping idle compute running.</p>
+
+          <h2>The cold-start problem</h2>
+          <p>Without warm pools, every job triggers fresh provisioning:</p>
+          <ul>
+            <li><strong>EC2:</strong> 30-90 seconds to launch an instance, boot the OS, and register the runner</li>
+            <li><strong>ECS Fargate:</strong> 15-45 seconds to pull the image and start the task</li>
+            <li><strong>EKS:</strong> 10-30 seconds to schedule and start a pod</li>
+          </ul>
+          <p>For teams that need sub-second job pickup (e.g., latency-sensitive CI/CD pipelines or developer-facing checks), warm pools eliminate this wait entirely.</p>
+
+          <h2>How it works</h2>
+          <ol>
+            <li>You set <code>min_warm: N</code> on a pool</li>
+            <li>The housekeeping loop continuously monitors the number of idle runners for that pool</li>
+            <li>If the idle count drops below <code>min_warm</code> (because a runner was assigned a job), the housekeeping loop launches replacement runners</li>
+            <li>Warm runners are pre-registered with GitHub and waiting in the <code>idle</code> state</li>
+            <li>When a job arrives, an idle runner is immediately assigned &mdash; no provisioning delay</li>
+          </ol>
+
+          <h2>Configuration</h2>
+          <div class="code-block">
+            <div class="code-block-header">config.yaml</div>
+            <pre><code>pools:
+  - name: linux-fast
+    platform: ec2
+    instance_type: m7i.xlarge
+    ami: ami-0abc123def456
+    disk_size_gb: 100
+    subnet_ids:
+      - subnet-aaa111
+      - subnet-bbb222
+    security_group_ids:
+      - sg-runners-001
+    spot_enabled: false
+    min_warm: 2              # always keep 2 idle runners ready
+
+  - name: fargate-warm
+    platform: ecs
+    cpu: 4096
+    memory: 8192
+    image: "123456789.dkr.ecr.us-west-2.amazonaws.com/runner:latest"
+    min_warm: 3              # keep 3 tasks ready for instant assignment
+
+label_mappings:
+  ir-fast: linux-fast
+  ir-ecs-warm: fargate-warm</code></pre>
+          </div>
+
+          <h2>Housekeeping reconciliation</h2>
+          <p>The control plane's housekeeping loop runs on a configurable interval (default: 30 seconds) and performs the following for each pool with <code>min_warm</code> set:</p>
+          <ol>
+            <li>Counts the current number of idle (unassigned) runners for the pool</li>
+            <li>If idle count &lt; <code>min_warm</code>, launches <code>min_warm - idle_count</code> new runners</li>
+            <li>If idle count &gt; <code>min_warm</code> (unlikely, but possible after scaling events), excess runners are left to timeout naturally</li>
+          </ol>
+
+          <div class="callout callout-note">
+            <div class="callout-title">Note</div>
+            <p>Warm runners still have a maximum idle timeout (default: 30 minutes). If a warm runner sits idle for too long without receiving a job, it is terminated and immediately replaced by the housekeeping loop. This ensures the fleet stays fresh.</p>
+          </div>
+
+          <h2>Cost tradeoff</h2>
+          <p>Warm pools trade cost for latency. Consider the math:</p>
+          <table>
+            <tr><th>Instance type</th><th>Hourly cost</th><th>min_warm=2 monthly cost</th></tr>
+            <tr><td>m7i.large (2 vCPU, 8 GB)</td><td>$0.101</td><td>~$146/mo</td></tr>
+            <tr><td>m7i.xlarge (4 vCPU, 16 GB)</td><td>$0.202</td><td>~$291/mo</td></tr>
+            <tr><td>m7i.2xlarge (8 vCPU, 32 GB)</td><td>$0.403</td><td>~$581/mo</td></tr>
+          </table>
+          <p>This is the worst-case idle cost &mdash; in practice, warm runners are frequently used for jobs, so the effective idle cost is lower during business hours.</p>
+
+          <h2>When to use warm pools</h2>
+          <ul>
+            <li><strong>Use warm pools when:</strong> developer experience matters, PR checks need fast feedback, or you have a steady baseline of jobs throughout the day</li>
+            <li><strong>Skip warm pools when:</strong> jobs are infrequent, cost optimization is the top priority, or cold-start latency is acceptable for your workflows</li>
+          </ul>
+
+          <h2>Combining with spot instances</h2>
+          <p>You can combine <code>min_warm</code> with <code>spot_enabled: true</code> to reduce the cost of warm runners. However, be aware that spot interruptions may temporarily reduce your warm pool below the target count until housekeeping replaces the interrupted instances.</p>
+
+          <div class="page-nav">
+            <a href="/docs/features/label-patterns">&larr; Label patterns</a>
+            <a href="/docs/features/spot-instances">Spot instances &rarr;</a>
+          </div>
+        </article>
+      </main>
+    </div>
+  </body>
+</html>

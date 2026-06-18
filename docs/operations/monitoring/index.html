@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Monitoring — iRunner Docs</title>
+    <link rel="stylesheet" href="../../docs.css">
+  </head>
+  <body>
+    <header class="docs-header">
+      <div class="docs-header-inner">
+        <a class="logo" href="/"><span class="logo-mark">ir</span><span class="logo-text">iRunner</span></a>
+        <span class="docs-label">Docs</span>
+        <nav class="docs-header-nav">
+          <a href="/docs">Home</a>
+          <a href="/docs/quickstart">Quickstart</a>
+          <a href="https://github.com/irunner-io/ir">GitHub</a>
+        </nav>
+      </div>
+    </header>
+    <div class="docs-layout">
+      <aside class="docs-sidebar">
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Getting started</div>
+          <a class="sidebar-link" href="/docs">Overview</a>
+          <a class="sidebar-link" href="/docs/quickstart">Quickstart</a>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Compute</div>
+          <a class="sidebar-link" href="/docs/compute/ec2">EC2 runners</a>
+          <a class="sidebar-link" href="/docs/compute/ecs">ECS Fargate</a>
+          <a class="sidebar-link" href="/docs/compute/eks">EKS pods</a>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Features</div>
+          <a class="sidebar-link" href="/docs/features/pools-and-labels">Pools &amp; labels</a>
+          <a class="sidebar-link" href="/docs/features/label-patterns">Label patterns</a>
+          <a class="sidebar-link" href="/docs/features/warm-pools">Warm pools</a>
+          <a class="sidebar-link" href="/docs/features/spot-instances">Spot instances</a>
+          <a class="sidebar-link" href="/docs/features/s3-cache">S3 cache</a>
+          <a class="sidebar-link" href="/docs/features/docker-layer-cache">Docker layer cache</a>
+          <a class="sidebar-link" href="/docs/features/custom-images">Custom images</a>
+          <a class="sidebar-link" href="/docs/features/arm64">ARM64 / Graviton</a>
+          <a class="sidebar-link" href="/docs/features/ephemeral-runners">Ephemeral runners</a>
+          <a class="sidebar-link" href="/docs/features/cost-tracking">Per-job cost tracking</a>
+          <a class="sidebar-link" href="/docs/features/observability">Observability</a>
+          <a class="sidebar-link" href="/docs/features/air-gap">Air-gap &amp; licensing</a>
+          <a class="sidebar-link" href="/docs/features/security">Security model</a>
+          <a class="sidebar-link" href="/docs/features/multi-platform">Multi-platform support</a>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Operations</div>
+          <a class="sidebar-link" href="/docs/operations/deployment">Deployment</a>
+          <a class="sidebar-link" href="/docs/operations/upgrades">Upgrades</a>
+          <a class="sidebar-link active" href="/docs/operations/monitoring">Monitoring</a>
+          <a class="sidebar-link" href="/docs/operations/troubleshooting">Troubleshooting</a>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Reference</div>
+          <a class="sidebar-link" href="/docs/reference/config">config.yaml</a>
+          <a class="sidebar-link" href="/docs/reference/cli">CLI reference</a>
+          <a class="sidebar-link" href="/docs/reference/api">API endpoints</a>
+          <a class="sidebar-link" href="/docs/reference/changelog">Changelog</a>
+        </div>
+      </aside>
+      <main class="docs-content">
+        <nav class="breadcrumbs">
+          <a href="/docs">Docs</a><span class="sep">/</span>Operations<span class="sep">/</span>Monitoring
+        </nav>
+        <article class="article">
+          <h1>Monitoring</h1>
+          <p class="article-intro">iRunner exposes structured logs, Prometheus metrics, and OpenTelemetry traces to give you full visibility into the control plane and runner lifecycle.</p>
+
+          <h2>Structured logs</h2>
+          <p>The control plane emits structured JSON logs to CloudWatch Logs:</p>
+          <table>
+            <tr><th>Log group</th><th>Contents</th></tr>
+            <tr><td><code>/ecs/{prefix}-control-plane</code></td><td>Control plane application logs</td></tr>
+          </table>
+          <p>Each log line includes fields for <code>level</code>, <code>msg</code>, <code>job_id</code>, <code>pool</code>, <code>repo</code>, and <code>duration_ms</code> for easy filtering.</p>
+
+          <h2>Prometheus metrics</h2>
+          <p>Metrics are exposed at <code>:8080/metrics</code> in Prometheus exposition format. Scrape this endpoint from your monitoring stack.</p>
+          <table>
+            <tr><th>Metric</th><th>Type</th><th>Description</th></tr>
+            <tr><td><code>ir_jobs_total</code></td><td>Counter</td><td>Total jobs processed (labels: pool, status)</td></tr>
+            <tr><td><code>ir_jobs_active</code></td><td>Gauge</td><td>Currently running jobs</td></tr>
+            <tr><td><code>ir_pool_capacity</code></td><td>Gauge</td><td>Maximum runners per pool</td></tr>
+            <tr><td><code>ir_pool_warm_count</code></td><td>Gauge</td><td>Warm (idle) runners ready in each pool</td></tr>
+            <tr><td><code>ir_job_duration_seconds</code></td><td>Histogram</td><td>End-to-end job duration</td></tr>
+            <tr><td><code>ir_cache_hits_total</code></td><td>Counter</td><td>Cache hit/miss counts (labels: pool, result)</td></tr>
+            <tr><td><code>ir_cache_size_bytes</code></td><td>Gauge</td><td>Total cache storage used per pool</td></tr>
+          </table>
+
+          <h2>OpenTelemetry traces</h2>
+          <p>iRunner produces distributed traces covering the full job lifecycle. Each job generates a trace with the following spans:</p>
+          <ul>
+            <li><code>webhook_received</code> &mdash; GitHub delivers the <code>workflow_job</code> event</li>
+            <li><code>pool_matched</code> &mdash; label routing selects a pool</li>
+            <li><code>runner_provisioned</code> &mdash; compute resource launched (EC2/ECS/EKS)</li>
+            <li><code>job_started</code> &mdash; runner registers with GitHub and begins execution</li>
+            <li><code>job_completed</code> &mdash; job finishes (success or failure)</li>
+            <li><code>runner_terminated</code> &mdash; ephemeral runner cleaned up</li>
+          </ul>
+          <p>Configure the OTLP exporter endpoint in <code>config.yaml</code> to send traces to your collector (Jaeger, Tempo, etc.).</p>
+
+          <h2>CloudWatch dashboards</h2>
+          <p>Monitor ECS service health through the AWS Console or create custom dashboards for:</p>
+          <ul>
+            <li>ECS task count (running vs desired)</li>
+            <li>CPU and memory utilization of control plane tasks</li>
+            <li>Task restart count and failure reasons</li>
+          </ul>
+
+          <h2>ALB metrics</h2>
+          <table>
+            <tr><th>Metric</th><th>What to watch</th></tr>
+            <tr><td>RequestCount</td><td>Webhook delivery rate</td></tr>
+            <tr><td>HTTPCode_Target_5XX_Count</td><td>Control plane errors (should be near zero)</td></tr>
+            <tr><td>TargetResponseTime</td><td>Webhook processing latency (p99 &lt; 500ms)</td></tr>
+          </table>
+
+          <h2>DynamoDB metrics</h2>
+          <table>
+            <tr><th>Metric</th><th>What to watch</th></tr>
+            <tr><td>ConsumedReadCapacityUnits</td><td>Read throughput against provisioned capacity</td></tr>
+            <tr><td>ConsumedWriteCapacityUnits</td><td>Write throughput against provisioned capacity</td></tr>
+            <tr><td>ThrottledRequests</td><td>Must remain at zero; scale capacity if non-zero</td></tr>
+          </table>
+
+          <h2>SQS metrics</h2>
+          <table>
+            <tr><th>Metric</th><th>What to watch</th></tr>
+            <tr><td>ApproximateNumberOfMessagesVisible</td><td>Queue depth &mdash; jobs waiting to be dispatched</td></tr>
+            <tr><td>ApproximateAgeOfOldestMessage</td><td>How long the oldest job has been waiting</td></tr>
+          </table>
+
+          <h2>Recommended alerts</h2>
+          <table>
+            <tr><th>Condition</th><th>Threshold</th><th>Action</th></tr>
+            <tr><td>SQS queue depth</td><td>&gt; 10 for 5 minutes</td><td>Investigate pool capacity or provisioning failures</td></tr>
+            <tr><td>ALB 5xx rate</td><td>&gt; 1% of requests</td><td>Check control plane logs for errors</td></tr>
+            <tr><td>ECS task failures</td><td>Any task exit code != 0</td><td>Review task stopped reason in ECS console</td></tr>
+            <tr><td>DynamoDB throttles</td><td>Any ThrottledRequests &gt; 0</td><td>Increase table capacity or switch to on-demand</td></tr>
+          </table>
+
+          <div class="callout callout-tip">
+            <div class="callout-title">Tip</div>
+            <p>Use CloudWatch Logs Insights to correlate job IDs across log streams. Query with <code>filter job_id = "abc123"</code> to trace a single job through the entire system.</p>
+          </div>
+
+          <div class="page-nav">
+            <a href="/docs/operations/upgrades">&larr; Upgrades</a>
+            <a href="/docs/operations/troubleshooting">Troubleshooting &rarr;</a>
+          </div>
+        </article>
+      </main>
+    </div>
+  </body>
+</html>

@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Custom Images — iRunner Docs</title>
+    <link rel="stylesheet" href="../../docs.css">
+  </head>
+  <body>
+    <header class="docs-header">
+      <div class="docs-header-inner">
+        <a class="logo" href="/"><span class="logo-mark">ir</span><span class="logo-text">iRunner</span></a>
+        <span class="docs-label">Docs</span>
+        <nav class="docs-header-nav">
+          <a href="/docs">Home</a>
+          <a href="/docs/quickstart">Quickstart</a>
+          <a href="https://github.com/irunner-io/ir">GitHub</a>
+        </nav>
+      </div>
+    </header>
+    <div class="docs-layout">
+      <aside class="docs-sidebar">
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Getting started</div>
+          <a class="sidebar-link" href="/docs">Overview</a>
+          <a class="sidebar-link" href="/docs/quickstart">Quickstart</a>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Compute</div>
+          <a class="sidebar-link" href="/docs/compute/ec2">EC2 runners</a>
+          <a class="sidebar-link" href="/docs/compute/ecs">ECS Fargate</a>
+          <a class="sidebar-link" href="/docs/compute/eks">EKS pods</a>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Features</div>
+          <a class="sidebar-link" href="/docs/features/pools-and-labels">Pools &amp; labels</a>
+          <a class="sidebar-link" href="/docs/features/label-patterns">Label patterns</a>
+          <a class="sidebar-link" href="/docs/features/warm-pools">Warm pools</a>
+          <a class="sidebar-link" href="/docs/features/spot-instances">Spot instances</a>
+          <a class="sidebar-link" href="/docs/features/s3-cache">S3 cache</a>
+          <a class="sidebar-link" href="/docs/features/docker-layer-cache">Docker layer cache</a>
+          <a class="sidebar-link active" href="/docs/features/custom-images">Custom images</a>
+          <a class="sidebar-link" href="/docs/features/arm64">ARM64 / Graviton</a>
+          <a class="sidebar-link" href="/docs/features/ephemeral-runners">Ephemeral runners</a>
+          <a class="sidebar-link" href="/docs/features/cost-tracking">Per-job cost tracking</a>
+          <a class="sidebar-link" href="/docs/features/observability">Observability</a>
+          <a class="sidebar-link" href="/docs/features/air-gap">Air-gap &amp; licensing</a>
+          <a class="sidebar-link" href="/docs/features/security">Security model</a>
+          <a class="sidebar-link" href="/docs/features/multi-platform">Multi-platform support</a>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Operations</div>
+          <a class="sidebar-link" href="/docs/operations/deployment">Deployment</a>
+          <a class="sidebar-link" href="/docs/operations/upgrades">Upgrades</a>
+          <a class="sidebar-link" href="/docs/operations/monitoring">Monitoring</a>
+          <a class="sidebar-link" href="/docs/operations/troubleshooting">Troubleshooting</a>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Reference</div>
+          <a class="sidebar-link" href="/docs/reference/config">config.yaml</a>
+          <a class="sidebar-link" href="/docs/reference/cli">CLI reference</a>
+          <a class="sidebar-link" href="/docs/reference/api">API endpoints</a>
+          <a class="sidebar-link" href="/docs/reference/changelog">Changelog</a>
+        </div>
+      </aside>
+      <main class="docs-content">
+        <nav class="breadcrumbs">
+          <a href="/docs">Docs</a><span class="sep">/</span>Features<span class="sep">/</span>Custom images
+        </nav>
+        <article class="article">
+          <h1>Custom Images</h1>
+          <p class="article-intro">Bring your own AMI for EC2 runners or your own container image for ECS/EKS. Pre-bake your toolchain, dependencies, and configuration for faster builds and consistent environments.</p>
+
+          <h2>Why custom images?</h2>
+          <p>The default iRunner images include a minimal set of tools (git, Docker, the GitHub Actions runner). For most teams, additional tools are needed: specific language runtimes, build tools, system libraries, or proprietary software. Custom images solve this by pre-installing everything at image build time.</p>
+          <ul>
+            <li><strong>Faster builds:</strong> No <code>apt-get install</code> or <code>npm install -g</code> at runtime</li>
+            <li><strong>Consistent environments:</strong> Every job gets the exact same toolchain version</li>
+            <li><strong>Reduced network traffic:</strong> Dependencies are baked in, not downloaded every run</li>
+            <li><strong>Compliance:</strong> Pre-approved images with security patches applied</li>
+          </ul>
+
+          <h2>EC2 custom AMI</h2>
+          <p>For EC2-backed pools, specify your AMI ID in the pool configuration:</p>
+          <div class="code-block">
+            <div class="code-block-header">config.yaml</div>
+            <pre><code>pools:
+  - name: linux-custom
+    platform: ec2
+    instance_type: m7i.2xlarge
+    ami: ami-0your-custom-ami-id
+    disk_size_gb: 100
+    subnet_ids:
+      - subnet-aaa111
+      - subnet-bbb222
+    security_group_ids:
+      - sg-runners-001
+
+  - name: linux-golang
+    platform: ec2
+    instance_type: c7i.xlarge
+    ami: ami-0golang-prebaked
+    disk_size_gb: 50
+    subnet_ids:
+      - subnet-aaa111
+    security_group_ids:
+      - sg-runners-001
+
+label_mappings:
+  ir-custom: linux-custom
+  ir-golang: linux-golang</code></pre>
+          </div>
+
+          <h3>AMI requirements</h3>
+          <p>Your custom AMI must include:</p>
+          <table>
+            <tr><th>Requirement</th><th>Details</th></tr>
+            <tr><td>Operating system</td><td>Ubuntu 22.04 or 24.04 (Amazon Linux 2023 also supported)</td></tr>
+            <tr><td>GitHub Actions runner</td><td>Pre-installed at <code>/opt/actions-runner/</code></td></tr>
+            <tr><td>Docker</td><td>Installed and the <code>runner</code> user added to the <code>docker</code> group</td></tr>
+            <tr><td>iRunner agent</td><td>The bootstrap script at <code>/opt/ir/bootstrap.sh</code></td></tr>
+            <tr><td>Cloud-init</td><td>For receiving user-data at launch</td></tr>
+          </table>
+
+          <div class="callout callout-tip">
+            <div class="callout-title">Tip</div>
+            <p>Start from iRunner's base AMI and add your customizations on top. This ensures all required components are present. Build your AMI with Packer for reproducibility.</p>
+          </div>
+
+          <h3>Example Packer template</h3>
+          <div class="code-block">
+            <div class="code-block-header">packer/custom-runner.pkr.hcl</div>
+            <pre><code>source "amazon-ebs" "runner" {
+  ami_name      = "ir-custom-runner-{{timestamp}}"
+  instance_type = "m7i.large"
+  region        = "us-west-2"
+  source_ami    = "ami-0irunner-base"   # iRunner's published base AMI
+
+  ssh_username = "ubuntu"
+}
+
+build {
+  sources = ["source.amazon-ebs.runner"]
+
+  # Install your tools
+  provisioner "shell" {
+    inline = [
+      "sudo apt-get update",
+      "sudo apt-get install -y golang-1.22 nodejs npm python3-pip",
+      "sudo npm install -g pnpm@9",
+      "pip3 install awscli boto3",
+    ]
+  }
+
+  # Copy configuration files
+  provisioner "file" {
+    source      = "configs/"
+    destination = "/opt/ir/configs/"
+  }
+}</code></pre>
+          </div>
+
+          <h2>ECS/EKS custom container image</h2>
+          <p>For ECS Fargate and EKS pools, specify a container image URI:</p>
+          <div class="code-block">
+            <div class="code-block-header">config.yaml</div>
+            <pre><code>pools:
+  - name: fargate-node
+    platform: ecs
+    cpu: 4096
+    memory: 8192
+    image: "123456789012.dkr.ecr.us-west-2.amazonaws.com/runner-node:20-latest"
+
+  - name: fargate-python
+    platform: ecs
+    cpu: 2048
+    memory: 4096
+    image: "123456789012.dkr.ecr.us-west-2.amazonaws.com/runner-python:3.12"
+
+  - name: eks-java
+    platform: eks
+    cpu_request: "4"
+    memory_request: "8Gi"
+    image: "123456789012.dkr.ecr.us-west-2.amazonaws.com/runner-java:21"
+    namespace: runners
+    service_account: runner-sa
+
+label_mappings:
+  ir-node: fargate-node
+  ir-python: fargate-python
+  ir-java: eks-java</code></pre>
+          </div>
+
+          <h3>Container image requirements</h3>
+          <p>Your container image must include:</p>
+          <table>
+            <tr><th>Requirement</th><th>Details</th></tr>
+            <tr><td>Base</td><td>Ubuntu 22.04+ or Debian 12+</td></tr>
+            <tr><td>GitHub Actions runner</td><td>Installed at <code>/opt/actions-runner/</code></td></tr>
+            <tr><td>Entrypoint</td><td>The iRunner entrypoint script (<code>/opt/ir/entrypoint.sh</code>)</td></tr>
+            <tr><td>User</td><td>Non-root <code>runner</code> user (UID 1000)</td></tr>
+          </table>
+
+          <h3>Example Dockerfile</h3>
+          <div class="code-block">
+            <div class="code-block-header">Dockerfile</div>
+            <pre><code>FROM 123456789012.dkr.ecr.us-west-2.amazonaws.com/runner-base:latest
+
+# Install Node.js 20
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y nodejs \
+    && npm install -g pnpm@9
+
+# Install additional tools
+RUN apt-get install -y \
+    jq \
+    yq \
+    gh
+
+# Pre-cache common dependencies (optional)
+COPY package.json /tmp/deps/
+RUN cd /tmp/deps && npm install && rm -rf /tmp/deps
+
+USER runner
+WORKDIR /home/runner</code></pre>
+          </div>
+
+          <h2>Image update strategy</h2>
+          <p>When you update your custom image:</p>
+          <ul>
+            <li><strong>EC2:</strong> Update the <code>ami</code> field in config.yaml and upload the new config. New runners will use the new AMI. Existing warm pool runners will be replaced on their next refresh cycle.</li>
+            <li><strong>ECS/EKS:</strong> Push a new image to the same tag (e.g., <code>:latest</code>) or update the <code>image</code> field to a new tag. New tasks/pods will pull the updated image.</li>
+          </ul>
+
+          <div class="callout callout-note">
+            <div class="callout-title">Note</div>
+            <p>When using mutable tags like <code>:latest</code> for ECS images, new tasks always pull the latest version. For EC2, you must update the AMI ID in config.yaml since AMI IDs are immutable.</p>
+          </div>
+
+          <div class="page-nav">
+            <a href="/docs/features/docker-layer-cache">&larr; Docker layer cache</a>
+            <a href="/docs/features/arm64">ARM64 / Graviton &rarr;</a>
+          </div>
+        </article>
+      </main>
+    </div>
+  </body>
+</html>

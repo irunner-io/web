@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Docker Layer Cache — iRunner Docs</title>
+    <link rel="stylesheet" href="../../docs.css">
+  </head>
+  <body>
+    <header class="docs-header">
+      <div class="docs-header-inner">
+        <a class="logo" href="/"><span class="logo-mark">ir</span><span class="logo-text">iRunner</span></a>
+        <span class="docs-label">Docs</span>
+        <nav class="docs-header-nav">
+          <a href="/docs">Home</a>
+          <a href="/docs/quickstart">Quickstart</a>
+          <a href="https://github.com/irunner-io/ir">GitHub</a>
+        </nav>
+      </div>
+    </header>
+    <div class="docs-layout">
+      <aside class="docs-sidebar">
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Getting started</div>
+          <a class="sidebar-link" href="/docs">Overview</a>
+          <a class="sidebar-link" href="/docs/quickstart">Quickstart</a>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Compute</div>
+          <a class="sidebar-link" href="/docs/compute/ec2">EC2 runners</a>
+          <a class="sidebar-link" href="/docs/compute/ecs">ECS Fargate</a>
+          <a class="sidebar-link" href="/docs/compute/eks">EKS pods</a>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Features</div>
+          <a class="sidebar-link" href="/docs/features/pools-and-labels">Pools &amp; labels</a>
+          <a class="sidebar-link" href="/docs/features/label-patterns">Label patterns</a>
+          <a class="sidebar-link" href="/docs/features/warm-pools">Warm pools</a>
+          <a class="sidebar-link" href="/docs/features/spot-instances">Spot instances</a>
+          <a class="sidebar-link" href="/docs/features/s3-cache">S3 cache</a>
+          <a class="sidebar-link active" href="/docs/features/docker-layer-cache">Docker layer cache</a>
+          <a class="sidebar-link" href="/docs/features/custom-images">Custom images</a>
+          <a class="sidebar-link" href="/docs/features/arm64">ARM64 / Graviton</a>
+          <a class="sidebar-link" href="/docs/features/ephemeral-runners">Ephemeral runners</a>
+          <a class="sidebar-link" href="/docs/features/cost-tracking">Per-job cost tracking</a>
+          <a class="sidebar-link" href="/docs/features/observability">Observability</a>
+          <a class="sidebar-link" href="/docs/features/air-gap">Air-gap &amp; licensing</a>
+          <a class="sidebar-link" href="/docs/features/security">Security model</a>
+          <a class="sidebar-link" href="/docs/features/multi-platform">Multi-platform support</a>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Operations</div>
+          <a class="sidebar-link" href="/docs/operations/deployment">Deployment</a>
+          <a class="sidebar-link" href="/docs/operations/upgrades">Upgrades</a>
+          <a class="sidebar-link" href="/docs/operations/monitoring">Monitoring</a>
+          <a class="sidebar-link" href="/docs/operations/troubleshooting">Troubleshooting</a>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Reference</div>
+          <a class="sidebar-link" href="/docs/reference/config">config.yaml</a>
+          <a class="sidebar-link" href="/docs/reference/cli">CLI reference</a>
+          <a class="sidebar-link" href="/docs/reference/api">API endpoints</a>
+          <a class="sidebar-link" href="/docs/reference/changelog">Changelog</a>
+        </div>
+      </aside>
+      <main class="docs-content">
+        <nav class="breadcrumbs">
+          <a href="/docs">Docs</a><span class="sep">/</span>Features<span class="sep">/</span>Docker layer cache
+        </nav>
+        <article class="article">
+          <h1>Docker Layer Cache</h1>
+          <p class="article-intro">iRunner provides cross-job Docker layer persistence backed by ECR and S3. Docker builds reuse cached layers from previous runs, dramatically reducing image build times on ephemeral runners.</p>
+
+          <h2>The problem with ephemeral Docker builds</h2>
+          <p>Since iRunner uses ephemeral runners (destroyed after each job), the local Docker layer cache is lost between builds. Without cross-job caching, every Docker build downloads and rebuilds all layers from scratch. For large images, this can add 5-15 minutes to every build.</p>
+
+          <h2>How it works</h2>
+          <p>iRunner's Docker layer cache uses a combination of ECR (for registry-based caching) and S3 (for blob storage):</p>
+          <ol>
+            <li>Docker BuildKit exports cache metadata to an ECR registry in your account</li>
+            <li>Layer blobs are stored in a dedicated S3 bucket for efficient retrieval</li>
+            <li>On the next build, BuildKit pulls cache manifests from ECR and retrieves unchanged layers from S3</li>
+            <li>Only modified layers are rebuilt and re-uploaded</li>
+          </ol>
+
+          <h2>Configuration</h2>
+          <div class="code-block">
+            <div class="code-block-header">config.yaml</div>
+            <pre><code>docker_cache:
+  enabled: true
+  docker_registry: "123456789012.dkr.ecr.us-west-2.amazonaws.com"
+  docker_bucket: ir-west-docker-layers-123456789012
+  region: us-west-2
+  ttl_days: 7              # registry layers older than this are cleaned up
+  max_cache_size_gb: 100   # per-repository cache size limit</code></pre>
+          </div>
+
+          <h3>Configuration fields</h3>
+          <table>
+            <tr><th>Field</th><th>Description</th><th>Default</th></tr>
+            <tr><td><code>docker_registry</code></td><td>ECR registry URI for cache manifests</td><td>Required</td></tr>
+            <tr><td><code>docker_bucket</code></td><td>S3 bucket for layer blobs</td><td>Required</td></tr>
+            <tr><td><code>region</code></td><td>AWS region for ECR and S3</td><td>Required</td></tr>
+            <tr><td><code>ttl_days</code></td><td>Days before unused layers are evicted</td><td><code>7</code></td></tr>
+            <tr><td><code>max_cache_size_gb</code></td><td>Maximum cache per repository</td><td><code>100</code></td></tr>
+          </table>
+
+          <h2>Workflow usage</h2>
+          <p>Use Docker Buildx with the <code>registry</code> cache backend. The runner is pre-authenticated to the ECR registry:</p>
+          <div class="code-block">
+            <div class="code-block-header">.github/workflows/docker-build.yml</div>
+            <pre><code>jobs:
+  build:
+    runs-on: ir-large
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: 123456789012.dkr.ecr.us-west-2.amazonaws.com/myapp:${{ github.sha }}
+          cache-from: type=registry,ref=123456789012.dkr.ecr.us-west-2.amazonaws.com/myapp:buildcache
+          cache-to: type=registry,ref=123456789012.dkr.ecr.us-west-2.amazonaws.com/myapp:buildcache,mode=max</code></pre>
+          </div>
+
+          <h3>Using S3 cache backend directly</h3>
+          <p>For larger caches, you can use the S3 cache backend with BuildKit:</p>
+          <div class="code-block">
+            <div class="code-block-header">.github/workflows/docker-build-s3.yml</div>
+            <pre><code>jobs:
+  build:
+    runs-on: ir-large
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build with S3 cache
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: 123456789012.dkr.ecr.us-west-2.amazonaws.com/myapp:${{ github.sha }}
+          cache-from: type=s3,region=us-west-2,bucket=ir-west-docker-layers-123456789012,name=myapp
+          cache-to: type=s3,region=us-west-2,bucket=ir-west-docker-layers-123456789012,name=myapp,mode=max</code></pre>
+          </div>
+
+          <h2>Layer eviction</h2>
+          <p>Cache layers are evicted based on two policies:</p>
+          <ul>
+            <li><strong>TTL-based:</strong> Layers not referenced within <code>ttl_days</code> are deleted via ECR lifecycle policies and S3 lifecycle rules</li>
+            <li><strong>Size-based:</strong> When a repository's cache exceeds <code>max_cache_size_gb</code>, the oldest layers are evicted first</li>
+          </ul>
+
+          <div class="callout callout-note">
+            <div class="callout-title">Note</div>
+            <p>The ECR registry used for Docker layer caching is separate from your application image registries. iRunner creates cache-specific repositories with the prefix <code>ir-cache/</code> to avoid conflicts with your production images.</p>
+          </div>
+
+          <h2>Performance impact</h2>
+          <p>Typical improvements with Docker layer caching enabled:</p>
+          <table>
+            <tr><th>Scenario</th><th>Without cache</th><th>With cache</th><th>Improvement</th></tr>
+            <tr><td>Node.js app (large node_modules)</td><td>8 min</td><td>1.5 min</td><td>~80%</td></tr>
+            <tr><td>Go binary (multi-stage)</td><td>5 min</td><td>45 sec</td><td>~85%</td></tr>
+            <tr><td>Python ML image (large deps)</td><td>12 min</td><td>2 min</td><td>~83%</td></tr>
+          </table>
+
+          <h2>Prerequisites</h2>
+          <ul>
+            <li>ECR repository created in your account (the CloudFormation stack creates this automatically)</li>
+            <li>Runner IAM role has <code>ecr:GetAuthorizationToken</code>, <code>ecr:BatchGetImage</code>, <code>ecr:PutImage</code> permissions</li>
+            <li>S3 bucket for layer blobs (created by the CloudFormation stack)</li>
+          </ul>
+
+          <div class="page-nav">
+            <a href="/docs/features/s3-cache">&larr; S3 cache</a>
+            <a href="/docs/features/custom-images">Custom images &rarr;</a>
+          </div>
+        </article>
+      </main>
+    </div>
+  </body>
+</html>

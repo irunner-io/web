@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Upgrades — iRunner Docs</title>
+    <link rel="stylesheet" href="../../docs.css">
+  </head>
+  <body>
+    <header class="docs-header">
+      <div class="docs-header-inner">
+        <a class="logo" href="/"><span class="logo-mark">ir</span><span class="logo-text">iRunner</span></a>
+        <span class="docs-label">Docs</span>
+        <nav class="docs-header-nav">
+          <a href="/docs">Home</a>
+          <a href="/docs/quickstart">Quickstart</a>
+          <a href="https://github.com/irunner-io/ir">GitHub</a>
+        </nav>
+      </div>
+    </header>
+    <div class="docs-layout">
+      <aside class="docs-sidebar">
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Getting started</div>
+          <a class="sidebar-link" href="/docs">Overview</a>
+          <a class="sidebar-link" href="/docs/quickstart">Quickstart</a>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Compute</div>
+          <a class="sidebar-link" href="/docs/compute/ec2">EC2 runners</a>
+          <a class="sidebar-link" href="/docs/compute/ecs">ECS Fargate</a>
+          <a class="sidebar-link" href="/docs/compute/eks">EKS pods</a>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Features</div>
+          <a class="sidebar-link" href="/docs/features/pools-and-labels">Pools &amp; labels</a>
+          <a class="sidebar-link" href="/docs/features/label-patterns">Label patterns</a>
+          <a class="sidebar-link" href="/docs/features/warm-pools">Warm pools</a>
+          <a class="sidebar-link" href="/docs/features/spot-instances">Spot instances</a>
+          <a class="sidebar-link" href="/docs/features/s3-cache">S3 cache</a>
+          <a class="sidebar-link" href="/docs/features/docker-layer-cache">Docker layer cache</a>
+          <a class="sidebar-link" href="/docs/features/custom-images">Custom images</a>
+          <a class="sidebar-link" href="/docs/features/arm64">ARM64 / Graviton</a>
+          <a class="sidebar-link" href="/docs/features/ephemeral-runners">Ephemeral runners</a>
+          <a class="sidebar-link" href="/docs/features/cost-tracking">Per-job cost tracking</a>
+          <a class="sidebar-link" href="/docs/features/observability">Observability</a>
+          <a class="sidebar-link" href="/docs/features/air-gap">Air-gap &amp; licensing</a>
+          <a class="sidebar-link" href="/docs/features/security">Security model</a>
+          <a class="sidebar-link" href="/docs/features/multi-platform">Multi-platform support</a>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Operations</div>
+          <a class="sidebar-link" href="/docs/operations/deployment">Deployment</a>
+          <a class="sidebar-link active" href="/docs/operations/upgrades">Upgrades</a>
+          <a class="sidebar-link" href="/docs/operations/monitoring">Monitoring</a>
+          <a class="sidebar-link" href="/docs/operations/troubleshooting">Troubleshooting</a>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Reference</div>
+          <a class="sidebar-link" href="/docs/reference/config">config.yaml</a>
+          <a class="sidebar-link" href="/docs/reference/cli">CLI reference</a>
+          <a class="sidebar-link" href="/docs/reference/api">API endpoints</a>
+          <a class="sidebar-link" href="/docs/reference/changelog">Changelog</a>
+        </div>
+      </aside>
+      <main class="docs-content">
+        <nav class="breadcrumbs">
+          <a href="/docs">Docs</a><span class="sep">/</span>Operations<span class="sep">/</span>Upgrades
+        </nav>
+        <article class="article">
+          <h1>Upgrades</h1>
+          <p class="article-intro">Upgrading iRunner is a zero-downtime operation. Build a new image, push it to ECR, and update the ECS service. The rolling deployment ensures continuous availability.</p>
+
+          <h2>Step 1: Build the new image</h2>
+          <p>Tag the image with a version identifier for traceability:</p>
+          <div class="code-block">
+            <div class="code-block-header">Terminal</div>
+            <pre><code>VERSION=$(git describe --tags --always)
+
+docker build -t ir-control-plane:${VERSION} .
+docker tag ir-control-plane:${VERSION} \
+  {account-id}.dkr.ecr.us-west-2.amazonaws.com/ir-control-plane:${VERSION}</code></pre>
+          </div>
+
+          <h2>Step 2: Push to ECR</h2>
+          <div class="code-block">
+            <div class="code-block-header">Terminal</div>
+            <pre><code>aws ecr get-login-password --region us-west-2 | \
+  docker login --username AWS --password-stdin {account-id}.dkr.ecr.us-west-2.amazonaws.com
+
+docker push {account-id}.dkr.ecr.us-west-2.amazonaws.com/ir-control-plane:${VERSION}</code></pre>
+          </div>
+
+          <h2>Step 3: Register new task definition</h2>
+          <p>Create a new task definition revision pointing to the new image:</p>
+          <div class="code-block">
+            <div class="code-block-header">Terminal</div>
+            <pre><code># Update the image in the task definition JSON
+sed -i "s|ir-control-plane:.*|ir-control-plane:${VERSION}\"|" deploy/task-definition.json
+
+# Register the new revision
+aws ecs register-task-definition \
+  --cli-input-json file://deploy/task-definition.json</code></pre>
+          </div>
+
+          <h2>Step 4: Update ECS service</h2>
+          <p>The ECS service performs a rolling deployment with minimum healthy percent set to 100%, ensuring no downtime:</p>
+          <div class="code-block">
+            <div class="code-block-header">Terminal</div>
+            <pre><code>aws ecs update-service \
+  --cluster {prefix}-cluster \
+  --service {prefix}-control-plane \
+  --task-definition ir-control-plane \
+  --force-new-deployment</code></pre>
+          </div>
+          <p>Monitor the deployment:</p>
+          <div class="code-block">
+            <div class="code-block-header">Terminal</div>
+            <pre><code>aws ecs wait services-stable \
+  --cluster {prefix}-cluster \
+  --services {prefix}-control-plane</code></pre>
+          </div>
+
+          <h2>Configuration changes</h2>
+          <p>If your upgrade requires config changes, update the config in S3 and restart the ECS tasks:</p>
+          <div class="code-block">
+            <div class="code-block-header">Terminal</div>
+            <pre><code># Upload updated config
+aws s3 cp config.yaml s3://{prefix}-releases-{account-id}/config/config.yaml
+
+# Force new deployment to pick up the new config
+aws ecs update-service \
+  --cluster {prefix}-cluster \
+  --service {prefix}-control-plane \
+  --force-new-deployment</code></pre>
+          </div>
+
+          <h2>Stack updates</h2>
+          <p>For infrastructure-level changes (new subnets, modified IAM policies, etc.), update the CloudFormation stack:</p>
+          <div class="code-block">
+            <div class="code-block-header">Terminal</div>
+            <pre><code>aws cloudformation update-stack \
+  --stack-name ir-controlplane \
+  --template-url https://ir-releases.s3.amazonaws.com/cloudformation/latest.yaml \
+  --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
+  --use-previous-template \
+  --parameters \
+    ParameterKey=Prefix,UsePreviousValue=true \
+    ParameterKey=VpcCidr,UsePreviousValue=true \
+    ParameterKey=GitHubAppId,UsePreviousValue=true \
+    ParameterKey=GitHubInstallationId,UsePreviousValue=true</code></pre>
+          </div>
+
+          <h2>Zero-downtime guarantees</h2>
+          <ul>
+            <li>ECS rolling update launches new tasks before draining old ones</li>
+            <li>ALB health checks (<code>/health</code> endpoint) gate traffic to new tasks</li>
+            <li>Minimum healthy percent of 100% ensures full capacity during deployment</li>
+            <li>In-flight jobs continue on existing runners unaffected by control plane restarts</li>
+          </ul>
+
+          <h2>Rollback</h2>
+          <p>To roll back, revert to the previous task definition revision:</p>
+          <div class="code-block">
+            <div class="code-block-header">Terminal</div>
+            <pre><code># List recent task definition revisions
+aws ecs list-task-definitions \
+  --family-prefix ir-control-plane \
+  --sort DESC --max-items 5
+
+# Update service to previous revision
+aws ecs update-service \
+  --cluster {prefix}-cluster \
+  --service {prefix}-control-plane \
+  --task-definition ir-control-plane:{previous-revision} \
+  --force-new-deployment</code></pre>
+          </div>
+
+          <div class="callout callout-tip">
+            <div class="callout-title">Tip</div>
+            <p>Keep at least 3 previous task definition revisions available for quick rollback. ECS retains inactive revisions indefinitely by default.</p>
+          </div>
+
+          <div class="page-nav">
+            <a href="/docs/operations/deployment">&larr; Deployment</a>
+            <a href="/docs/operations/monitoring">Monitoring &rarr;</a>
+          </div>
+        </article>
+      </main>
+    </div>
+  </body>
+</html>

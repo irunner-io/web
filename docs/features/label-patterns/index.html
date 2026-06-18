@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Label Patterns — iRunner Docs</title>
+    <link rel="stylesheet" href="../../docs.css">
+  </head>
+  <body>
+    <header class="docs-header">
+      <div class="docs-header-inner">
+        <a class="logo" href="/"><span class="logo-mark">ir</span><span class="logo-text">iRunner</span></a>
+        <span class="docs-label">Docs</span>
+        <nav class="docs-header-nav">
+          <a href="/docs">Home</a>
+          <a href="/docs/quickstart">Quickstart</a>
+          <a href="https://github.com/irunner-io/ir">GitHub</a>
+        </nav>
+      </div>
+    </header>
+    <div class="docs-layout">
+      <aside class="docs-sidebar">
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Getting started</div>
+          <a class="sidebar-link" href="/docs">Overview</a>
+          <a class="sidebar-link" href="/docs/quickstart">Quickstart</a>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Compute</div>
+          <a class="sidebar-link" href="/docs/compute/ec2">EC2 runners</a>
+          <a class="sidebar-link" href="/docs/compute/ecs">ECS Fargate</a>
+          <a class="sidebar-link" href="/docs/compute/eks">EKS pods</a>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Features</div>
+          <a class="sidebar-link" href="/docs/features/pools-and-labels">Pools &amp; labels</a>
+          <a class="sidebar-link active" href="/docs/features/label-patterns">Label patterns</a>
+          <a class="sidebar-link" href="/docs/features/warm-pools">Warm pools</a>
+          <a class="sidebar-link" href="/docs/features/spot-instances">Spot instances</a>
+          <a class="sidebar-link" href="/docs/features/s3-cache">S3 cache</a>
+          <a class="sidebar-link" href="/docs/features/docker-layer-cache">Docker layer cache</a>
+          <a class="sidebar-link" href="/docs/features/custom-images">Custom images</a>
+          <a class="sidebar-link" href="/docs/features/arm64">ARM64 / Graviton</a>
+          <a class="sidebar-link" href="/docs/features/ephemeral-runners">Ephemeral runners</a>
+          <a class="sidebar-link" href="/docs/features/cost-tracking">Per-job cost tracking</a>
+          <a class="sidebar-link" href="/docs/features/observability">Observability</a>
+          <a class="sidebar-link" href="/docs/features/air-gap">Air-gap &amp; licensing</a>
+          <a class="sidebar-link" href="/docs/features/security">Security model</a>
+          <a class="sidebar-link" href="/docs/features/multi-platform">Multi-platform support</a>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Operations</div>
+          <a class="sidebar-link" href="/docs/operations/deployment">Deployment</a>
+          <a class="sidebar-link" href="/docs/operations/upgrades">Upgrades</a>
+          <a class="sidebar-link" href="/docs/operations/monitoring">Monitoring</a>
+          <a class="sidebar-link" href="/docs/operations/troubleshooting">Troubleshooting</a>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Reference</div>
+          <a class="sidebar-link" href="/docs/reference/config">config.yaml</a>
+          <a class="sidebar-link" href="/docs/reference/cli">CLI reference</a>
+          <a class="sidebar-link" href="/docs/reference/api">API endpoints</a>
+          <a class="sidebar-link" href="/docs/reference/changelog">Changelog</a>
+        </div>
+      </aside>
+      <main class="docs-content">
+        <nav class="breadcrumbs">
+          <a href="/docs">Docs</a><span class="sep">/</span>Features<span class="sep">/</span>Label patterns
+        </nav>
+        <article class="article">
+          <h1>Label Patterns</h1>
+          <p class="article-intro">Label patterns enable dynamic resource allocation by letting developers specify compute requirements directly in the <code>runs-on:</code> label. Instead of pre-defining every possible combination, patterns use parameterized templates with constraints.</p>
+
+          <h2>How it works</h2>
+          <p>A label pattern is a template string with placeholders enclosed in curly braces. When a job requests a label, the control plane attempts to match it against configured patterns, extracts the parameter values, validates them against constraints, and provisions a runner with the resolved configuration.</p>
+          <p>This allows a single pattern to serve many different resource configurations without requiring individual pool definitions for each one.</p>
+
+          <h3>Resolution flow</h3>
+          <ol>
+            <li>Job requests <code>runs-on: ir-ecs-2cpu-4g</code></li>
+            <li>Control plane checks <code>label_mappings</code> first (no match)</li>
+            <li>Control plane checks <code>label_patterns</code> &mdash; matches <code>ir-ecs-{cpu}cpu-{mem}g</code></li>
+            <li>Extracts: <code>cpu=2</code>, <code>mem=4</code></li>
+            <li>Validates against constraints: <code>cpu</code> must be in <code>[1, 2, 4, 8, 16]</code>, <code>mem</code> must be in <code>[2, 4, 8, 16, 32]</code></li>
+            <li>Provisions an ECS task with 2 vCPU and 4 GB memory</li>
+          </ol>
+
+          <h2>Configuration</h2>
+          <p>Label patterns are defined in the <code>label_patterns</code> section of config.yaml:</p>
+          <div class="code-block">
+            <div class="code-block-header">config.yaml</div>
+            <pre><code>label_patterns:
+  - pattern: "ir-ecs-{cpu}cpu-{mem}g"
+    platform: ecs
+    constraints:
+      cpu: [1, 2, 4, 8, 16]
+      mem: [2, 4, 8, 16, 32]
+    mapping:
+      cpu: "{cpu}048"      # converts vCPU count to Fargate CPU units
+      memory: "{mem}096"   # converts GB to Fargate memory in MB (approximate)
+    image: "123456789.dkr.ecr.us-west-2.amazonaws.com/runner:latest"
+    spot_enabled: true
+
+  - pattern: "ir-ec2-{size}"
+    platform: ec2
+    constraints:
+      size: [small, medium, large, xlarge, 2xlarge]
+    mapping:
+      instance_type:
+        small: m7i.large
+        medium: m7i.xlarge
+        large: m7i.2xlarge
+        xlarge: m7i.4xlarge
+        2xlarge: m7i.8xlarge
+    ami: ami-0abc123def456
+    disk_size_gb: 100
+    subnet_ids:
+      - subnet-aaa111
+      - subnet-bbb222
+    security_group_ids:
+      - sg-runners-001
+
+  - pattern: "ir-eks-{cpu}cpu-{mem}g"
+    platform: eks
+    constraints:
+      cpu: [1, 2, 4, 8]
+      mem: [2, 4, 8, 16, 32]
+    mapping:
+      cpu_request: "{cpu}"
+      memory_request: "{mem}Gi"
+    namespace: runners
+    service_account: runner-sa</code></pre>
+          </div>
+
+          <h2>Using patterns in workflows</h2>
+          <p>Developers simply use the parameterized label in <code>runs-on:</code>:</p>
+          <div class="code-block">
+            <div class="code-block-header">.github/workflows/ci.yml</div>
+            <pre><code>jobs:
+  lint:
+    runs-on: ir-ecs-1cpu-2g    # minimal resources for linting
+    steps:
+      - uses: actions/checkout@v4
+      - run: make lint
+
+  test:
+    runs-on: ir-ecs-4cpu-8g    # more resources for tests
+    steps:
+      - uses: actions/checkout@v4
+      - run: make test
+
+  build-image:
+    runs-on: ir-ec2-large      # EC2 with mapped instance type
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t myapp .
+
+  heavy-compile:
+    runs-on: ir-eks-8cpu-32g   # large Kubernetes pod
+    steps:
+      - uses: actions/checkout@v4
+      - run: make build-all</code></pre>
+          </div>
+
+          <h2>Constraints</h2>
+          <p>Constraints prevent invalid or excessively large resource requests. If a requested value is not in the allowed list, the job is rejected with an error.</p>
+          <table>
+            <tr><th>Constraint type</th><th>Description</th><th>Example</th></tr>
+            <tr><td>Enumerated values</td><td>Value must be one of the listed options</td><td><code>[1, 2, 4, 8, 16]</code></td></tr>
+            <tr><td>String enums</td><td>Named sizes or tiers</td><td><code>[small, medium, large]</code></td></tr>
+          </table>
+
+          <div class="callout callout-note">
+            <div class="callout-title">Note</div>
+            <p>Label patterns are evaluated after static <code>label_mappings</code>. If a label matches both a static mapping and a pattern, the static mapping takes priority.</p>
+          </div>
+
+          <h2>ECS CPU and memory combinations</h2>
+          <p>When using ECS Fargate, be aware that not all CPU/memory combinations are valid. Fargate enforces specific pairings:</p>
+          <table>
+            <tr><th>CPU (vCPU)</th><th>Valid memory (GB)</th></tr>
+            <tr><td>0.25</td><td>0.5, 1, 2</td></tr>
+            <tr><td>0.5</td><td>1, 2, 3, 4</td></tr>
+            <tr><td>1</td><td>2, 3, 4, 5, 6, 7, 8</td></tr>
+            <tr><td>2</td><td>4, 5, 6, ... 16</td></tr>
+            <tr><td>4</td><td>8, 9, 10, ... 30</td></tr>
+            <tr><td>8</td><td>16, 17, 18, ... 60</td></tr>
+            <tr><td>16</td><td>32, 33, 34, ... 120</td></tr>
+          </table>
+          <p>Configure your constraints to only allow valid Fargate-compatible combinations.</p>
+
+          <h2>Best practices</h2>
+          <ul>
+            <li>Use constraints to enforce cost guardrails (e.g., cap at 8 vCPU for most workloads)</li>
+            <li>Combine patterns with <code>spot_enabled: true</code> for cost-efficient dynamic allocation</li>
+            <li>Document available patterns for your team so developers know what labels to use</li>
+            <li>Start with a few common sizes and add more as needed</li>
+          </ul>
+
+          <div class="page-nav">
+            <a href="/docs/features/pools-and-labels">&larr; Pools &amp; labels</a>
+            <a href="/docs/features/warm-pools">Warm pools &rarr;</a>
+          </div>
+        </article>
+      </main>
+    </div>
+  </body>
+</html>

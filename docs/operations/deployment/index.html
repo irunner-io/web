@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Deployment — iRunner Docs</title>
+    <link rel="stylesheet" href="../../docs.css">
+  </head>
+  <body>
+    <header class="docs-header">
+      <div class="docs-header-inner">
+        <a class="logo" href="/"><span class="logo-mark">ir</span><span class="logo-text">iRunner</span></a>
+        <span class="docs-label">Docs</span>
+        <nav class="docs-header-nav">
+          <a href="/docs">Home</a>
+          <a href="/docs/quickstart">Quickstart</a>
+          <a href="https://github.com/irunner-io/ir">GitHub</a>
+        </nav>
+      </div>
+    </header>
+    <div class="docs-layout">
+      <aside class="docs-sidebar">
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Getting started</div>
+          <a class="sidebar-link" href="/docs">Overview</a>
+          <a class="sidebar-link" href="/docs/quickstart">Quickstart</a>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Compute</div>
+          <a class="sidebar-link" href="/docs/compute/ec2">EC2 runners</a>
+          <a class="sidebar-link" href="/docs/compute/ecs">ECS Fargate</a>
+          <a class="sidebar-link" href="/docs/compute/eks">EKS pods</a>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Features</div>
+          <a class="sidebar-link" href="/docs/features/pools-and-labels">Pools &amp; labels</a>
+          <a class="sidebar-link" href="/docs/features/label-patterns">Label patterns</a>
+          <a class="sidebar-link" href="/docs/features/warm-pools">Warm pools</a>
+          <a class="sidebar-link" href="/docs/features/spot-instances">Spot instances</a>
+          <a class="sidebar-link" href="/docs/features/s3-cache">S3 cache</a>
+          <a class="sidebar-link" href="/docs/features/docker-layer-cache">Docker layer cache</a>
+          <a class="sidebar-link" href="/docs/features/custom-images">Custom images</a>
+          <a class="sidebar-link" href="/docs/features/arm64">ARM64 / Graviton</a>
+          <a class="sidebar-link" href="/docs/features/ephemeral-runners">Ephemeral runners</a>
+          <a class="sidebar-link" href="/docs/features/cost-tracking">Per-job cost tracking</a>
+          <a class="sidebar-link" href="/docs/features/observability">Observability</a>
+          <a class="sidebar-link" href="/docs/features/air-gap">Air-gap &amp; licensing</a>
+          <a class="sidebar-link" href="/docs/features/security">Security model</a>
+          <a class="sidebar-link" href="/docs/features/multi-platform">Multi-platform support</a>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Operations</div>
+          <a class="sidebar-link active" href="/docs/operations/deployment">Deployment</a>
+          <a class="sidebar-link" href="/docs/operations/upgrades">Upgrades</a>
+          <a class="sidebar-link" href="/docs/operations/monitoring">Monitoring</a>
+          <a class="sidebar-link" href="/docs/operations/troubleshooting">Troubleshooting</a>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Reference</div>
+          <a class="sidebar-link" href="/docs/reference/config">config.yaml</a>
+          <a class="sidebar-link" href="/docs/reference/cli">CLI reference</a>
+          <a class="sidebar-link" href="/docs/reference/api">API endpoints</a>
+          <a class="sidebar-link" href="/docs/reference/changelog">Changelog</a>
+        </div>
+      </aside>
+      <main class="docs-content">
+        <nav class="breadcrumbs">
+          <a href="/docs">Docs</a><span class="sep">/</span>Operations<span class="sep">/</span>Deployment
+        </nav>
+        <article class="article">
+          <h1>Deployment</h1>
+          <p class="article-intro">iRunner deploys entirely via AWS CloudFormation. A single stack provisions all infrastructure, and the control plane runs as an ECS service with configuration stored in S3.</p>
+
+          <h2>What the stack creates</h2>
+          <p>The CloudFormation template provisions the following resources:</p>
+          <ul>
+            <li><strong>VPC</strong> with configurable CIDR block</li>
+            <li><strong>Subnets</strong> &mdash; public subnets for the ALB, private subnets dedicated per compute tier (EC2, ECS, EKS)</li>
+            <li><strong>Application Load Balancer</strong> with HTTPS listener and health checks</li>
+            <li><strong>ECS cluster + service</strong> running the control plane as a Fargate task</li>
+            <li><strong>SQS queues</strong> (.fifo) for job dispatch and lifecycle events</li>
+            <li><strong>DynamoDB tables</strong> for pool state, job tracking, and instance metadata</li>
+            <li><strong>S3 buckets</strong> for releases, config, and cache storage</li>
+            <li><strong>IAM roles</strong> for the control plane task, runner instances, and cross-service access</li>
+            <li><strong>Cloud Map namespace</strong> for internal service discovery</li>
+          </ul>
+
+          <h2>Key parameters</h2>
+          <table>
+            <tr><th>Parameter</th><th>Description</th><th>Example</th></tr>
+            <tr><td><code>Prefix</code></td><td>Resource naming prefix (must be unique per account)</td><td><code>ir-west</code></td></tr>
+            <tr><td><code>VpcCidr</code></td><td>CIDR block for the VPC</td><td><code>10.0.0.0/16</code></td></tr>
+            <tr><td><code>GitHubAppId</code></td><td>GitHub App ID for webhook authentication</td><td><code>123456</code></td></tr>
+            <tr><td><code>GitHubInstallationId</code></td><td>Installation ID from the GitHub App install</td><td><code>789012</code></td></tr>
+          </table>
+
+          <h2>Deploy the stack</h2>
+          <div class="code-block">
+            <div class="code-block-header">Terminal</div>
+            <pre><code>aws cloudformation create-stack \
+  --stack-name ir-controlplane \
+  --template-url https://ir-releases.s3.amazonaws.com/cloudformation/latest.yaml \
+  --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
+  --parameters \
+    ParameterKey=Prefix,ParameterValue=ir-west \
+    ParameterKey=VpcCidr,ParameterValue=10.0.0.0/16 \
+    ParameterKey=GitHubAppId,ParameterValue=123456 \
+    ParameterKey=GitHubInstallationId,ParameterValue=789012
+
+# Wait for completion
+aws cloudformation wait stack-create-complete --stack-name ir-controlplane</code></pre>
+          </div>
+
+          <h2>Stack outputs</h2>
+          <p>Once the stack is complete, retrieve the outputs you will need for subsequent steps:</p>
+          <div class="code-block">
+            <div class="code-block-header">Terminal</div>
+            <pre><code>aws cloudformation describe-stacks --stack-name ir-controlplane \
+  --query "Stacks[0].Outputs" --output table</code></pre>
+          </div>
+          <table>
+            <tr><th>Output</th><th>Description</th></tr>
+            <tr><td><code>WebhookEndpoint</code></td><td>Public ALB URL for GitHub webhook delivery</td></tr>
+            <tr><td><code>InternalEndpoint</code></td><td>Private Cloud Map endpoint for VPC-internal access</td></tr>
+            <tr><td><code>ReleasesBucketName</code></td><td>S3 bucket for config and binary releases</td></tr>
+            <tr><td><code>EcsClusterArn</code></td><td>ARN of the ECS cluster running the control plane</td></tr>
+            <tr><td><code>EcsServiceName</code></td><td>Name of the ECS service</td></tr>
+          </table>
+
+          <h2>Generate configuration</h2>
+          <p>Use the config generator script to produce a <code>config.yaml</code> tailored to your stack:</p>
+          <div class="code-block">
+            <div class="code-block-header">Terminal</div>
+            <pre><code>./deploy/generate-config.sh \
+  --stack-name ir-controlplane \
+  --github-app-id 123456 \
+  --github-installation-id 789012 \
+  > config.yaml</code></pre>
+          </div>
+
+          <h2>Upload configuration to S3</h2>
+          <p>The control plane reads its configuration from a well-known S3 path:</p>
+          <div class="code-block">
+            <div class="code-block-header">Terminal</div>
+            <pre><code>aws s3 cp config.yaml s3://{prefix}-releases-{account-id}/config/config.yaml</code></pre>
+          </div>
+
+          <h2>Build and push the Docker image</h2>
+          <div class="code-block">
+            <div class="code-block-header">Terminal</div>
+            <pre><code># Authenticate with ECR
+aws ecr get-login-password --region us-west-2 | \
+  docker login --username AWS --password-stdin {account-id}.dkr.ecr.us-west-2.amazonaws.com
+
+# Build the image
+docker build -t ir-control-plane:latest .
+
+# Tag and push
+docker tag ir-control-plane:latest \
+  {account-id}.dkr.ecr.us-west-2.amazonaws.com/ir-control-plane:latest
+docker push {account-id}.dkr.ecr.us-west-2.amazonaws.com/ir-control-plane:latest</code></pre>
+          </div>
+
+          <h2>Register task definition and update ECS service</h2>
+          <div class="code-block">
+            <div class="code-block-header">Terminal</div>
+            <pre><code># Register a new task definition revision
+aws ecs register-task-definition \
+  --cli-input-json file://deploy/task-definition.json
+
+# Update the ECS service to use the new task definition
+aws ecs update-service \
+  --cluster {prefix}-cluster \
+  --service {prefix}-control-plane \
+  --task-definition ir-control-plane \
+  --force-new-deployment</code></pre>
+          </div>
+
+          <div class="callout callout-tip">
+            <div class="callout-title">Tip</div>
+            <p>The ECS service performs a rolling deployment by default. The ALB health check ensures traffic only routes to healthy tasks before draining old ones.</p>
+          </div>
+
+          <div class="page-nav">
+            <a href="/docs/features/multi-platform">&larr; Multi-platform support</a>
+            <a href="/docs/operations/upgrades">Upgrades &rarr;</a>
+          </div>
+        </article>
+      </main>
+    </div>
+  </body>
+</html>

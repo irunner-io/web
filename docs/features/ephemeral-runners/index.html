@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Ephemeral Runners — iRunner Docs</title>
+    <link rel="stylesheet" href="../../docs.css">
+  </head>
+  <body>
+    <header class="docs-header">
+      <div class="docs-header-inner">
+        <a class="logo" href="/"><span class="logo-mark">ir</span><span class="logo-text">iRunner</span></a>
+        <span class="docs-label">Docs</span>
+        <nav class="docs-header-nav">
+          <a href="/docs">Home</a>
+          <a href="/docs/quickstart">Quickstart</a>
+          <a href="https://github.com/irunner-io/ir">GitHub</a>
+        </nav>
+      </div>
+    </header>
+    <div class="docs-layout">
+      <aside class="docs-sidebar">
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Getting started</div>
+          <a class="sidebar-link" href="/docs">Overview</a>
+          <a class="sidebar-link" href="/docs/quickstart">Quickstart</a>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Compute</div>
+          <a class="sidebar-link" href="/docs/compute/ec2">EC2 runners</a>
+          <a class="sidebar-link" href="/docs/compute/ecs">ECS Fargate</a>
+          <a class="sidebar-link" href="/docs/compute/eks">EKS pods</a>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Features</div>
+          <a class="sidebar-link" href="/docs/features/pools-and-labels">Pools &amp; labels</a>
+          <a class="sidebar-link" href="/docs/features/label-patterns">Label patterns</a>
+          <a class="sidebar-link" href="/docs/features/warm-pools">Warm pools</a>
+          <a class="sidebar-link" href="/docs/features/spot-instances">Spot instances</a>
+          <a class="sidebar-link" href="/docs/features/s3-cache">S3 cache</a>
+          <a class="sidebar-link" href="/docs/features/docker-layer-cache">Docker layer cache</a>
+          <a class="sidebar-link" href="/docs/features/custom-images">Custom images</a>
+          <a class="sidebar-link" href="/docs/features/arm64">ARM64 / Graviton</a>
+          <a class="sidebar-link active" href="/docs/features/ephemeral-runners">Ephemeral runners</a>
+          <a class="sidebar-link" href="/docs/features/cost-tracking">Per-job cost tracking</a>
+          <a class="sidebar-link" href="/docs/features/observability">Observability</a>
+          <a class="sidebar-link" href="/docs/features/air-gap">Air-gap &amp; licensing</a>
+          <a class="sidebar-link" href="/docs/features/security">Security model</a>
+          <a class="sidebar-link" href="/docs/features/multi-platform">Multi-platform support</a>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Operations</div>
+          <a class="sidebar-link" href="/docs/operations/deployment">Deployment</a>
+          <a class="sidebar-link" href="/docs/operations/upgrades">Upgrades</a>
+          <a class="sidebar-link" href="/docs/operations/monitoring">Monitoring</a>
+          <a class="sidebar-link" href="/docs/operations/troubleshooting">Troubleshooting</a>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Reference</div>
+          <a class="sidebar-link" href="/docs/reference/config">config.yaml</a>
+          <a class="sidebar-link" href="/docs/reference/cli">CLI reference</a>
+          <a class="sidebar-link" href="/docs/reference/api">API endpoints</a>
+          <a class="sidebar-link" href="/docs/reference/changelog">Changelog</a>
+        </div>
+      </aside>
+      <main class="docs-content">
+        <nav class="breadcrumbs">
+          <a href="/docs">Docs</a><span class="sep">/</span>Features<span class="sep">/</span>Ephemeral runners
+        </nav>
+        <article class="article">
+          <h1>Ephemeral Runners</h1>
+          <p class="article-intro">Every iRunner runner is destroyed after completing a single job. This ephemeral model eliminates persistent state between jobs, ensuring a clean environment every time and reducing the attack surface of your CI infrastructure.</p>
+
+          <h2>How it works</h2>
+          <p>iRunner registers every runner with the <code>--ephemeral</code> flag when connecting to GitHub. This tells GitHub that the runner will only accept one job and then de-register itself. The lifecycle is:</p>
+          <ol>
+            <li><strong>Provision:</strong> A new VM, container, or pod is created for the job</li>
+            <li><strong>Register:</strong> The runner registers with GitHub using a just-in-time (JIT) token with <code>--ephemeral</code></li>
+            <li><strong>Execute:</strong> The runner picks up exactly one job and runs it</li>
+            <li><strong>Terminate:</strong> After the job completes (success or failure), the runner de-registers and the compute resource is destroyed</li>
+            <li><strong>Cleanup:</strong> The EC2 instance is terminated, ECS task is stopped, or K8s pod is deleted</li>
+          </ol>
+
+          <h2>Security benefits</h2>
+          <p>Ephemeral runners provide significant security advantages over persistent self-hosted runners:</p>
+          <table>
+            <tr><th>Threat</th><th>Persistent runner</th><th>Ephemeral runner (iRunner)</th></tr>
+            <tr><td>Credential leakage between jobs</td><td>Secrets from Job A accessible to Job B</td><td>Impossible &mdash; environment destroyed</td></tr>
+            <tr><td>Malicious code persistence</td><td>Malware can survive between jobs</td><td>Destroyed with the environment</td></tr>
+            <tr><td>Crypto miners</td><td>Can run indefinitely in background</td><td>Killed when job completes</td></tr>
+            <tr><td>Lateral movement</td><td>Compromised runner remains on network</td><td>Ephemeral &mdash; no persistent foothold</td></tr>
+            <tr><td>Dirty state bugs</td><td>Previous job artifacts can affect next job</td><td>Clean slate every time</td></tr>
+          </table>
+
+          <h2>Automatic cleanup</h2>
+          <p>iRunner ensures runners are cleaned up in all scenarios:</p>
+          <ul>
+            <li><strong>Job success:</strong> Runner completes, de-registers, compute terminated immediately</li>
+            <li><strong>Job failure:</strong> Same as success &mdash; compute terminated regardless of exit code</li>
+            <li><strong>Job timeout:</strong> If a job exceeds its timeout (default: 6 hours), the control plane forcibly terminates the runner</li>
+            <li><strong>Orphaned runners:</strong> The housekeeping loop detects runners that are registered but not running a job for too long, and terminates them</li>
+            <li><strong>Spot interruption:</strong> AWS terminates the instance; the control plane detects the loss and updates state</li>
+          </ul>
+
+          <h3>Timeout configuration</h3>
+          <div class="code-block">
+            <div class="code-block-header">config.yaml</div>
+            <pre><code>runner:
+  max_job_duration: 6h       # maximum time a single job can run
+  idle_timeout: 30m          # max time a warm runner waits for a job
+  orphan_check_interval: 60s # how often to check for orphaned runners</code></pre>
+          </div>
+
+          <h2>No persistent state</h2>
+          <p>Because runners are ephemeral, there is no local state between jobs:</p>
+          <ul>
+            <li>No local Docker layer cache (use <a href="/docs/features/docker-layer-cache">Docker layer cache</a> for cross-job caching)</li>
+            <li>No local file cache (use <a href="/docs/features/s3-cache">S3 cache</a> instead)</li>
+            <li>No leftover processes or background services</li>
+            <li>No environment variables or shell history from previous jobs</li>
+            <li>No repository checkouts from other projects</li>
+          </ul>
+
+          <div class="callout callout-note">
+            <div class="callout-title">Note</div>
+            <p>The ephemeral model means every job pays the cost of setup (checkout, dependency install, etc.). Use iRunner's <a href="/docs/features/s3-cache">S3 cache</a> and <a href="/docs/features/custom-images">custom images</a> to minimize this overhead while maintaining the security benefits of ephemeral environments.</p>
+          </div>
+
+          <h2>Comparison with persistent runners</h2>
+          <table>
+            <tr><th>Aspect</th><th>Persistent runners</th><th>Ephemeral runners (iRunner)</th></tr>
+            <tr><td>Security</td><td>Shared state is a risk</td><td>Complete isolation per job</td></tr>
+            <tr><td>Maintenance</td><td>Requires patching, monitoring drift</td><td>Image-based, immutable</td></tr>
+            <tr><td>Scaling</td><td>Fixed fleet, manual scaling</td><td>Automatic, on-demand</td></tr>
+            <tr><td>Cost model</td><td>Always-on (pay for idle)</td><td>Pay per job (plus warm pool cost)</td></tr>
+            <tr><td>Local cache</td><td>Available (fast, but dirty)</td><td>Not available (use S3 cache)</td></tr>
+            <tr><td>Setup time</td><td>Instant (already running)</td><td>Cold-start unless warm pool configured</td></tr>
+          </table>
+
+          <h2>JIT runner tokens</h2>
+          <p>iRunner uses GitHub's just-in-time runner registration API. Each runner gets a unique, short-lived registration token that is valid for exactly one registration. This means:</p>
+          <ul>
+            <li>No long-lived runner tokens stored anywhere</li>
+            <li>Tokens cannot be reused if intercepted</li>
+            <li>Each runner has a unique identity for audit purposes</li>
+          </ul>
+
+          <div class="page-nav">
+            <a href="/docs/features/arm64">&larr; ARM64 / Graviton</a>
+            <a href="/docs/features/cost-tracking">Per-job cost tracking &rarr;</a>
+          </div>
+        </article>
+      </main>
+    </div>
+  </body>
+</html>

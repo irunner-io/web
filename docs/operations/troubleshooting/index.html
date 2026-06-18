@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Troubleshooting — iRunner Docs</title>
+    <link rel="stylesheet" href="../../docs.css">
+  </head>
+  <body>
+    <header class="docs-header">
+      <div class="docs-header-inner">
+        <a class="logo" href="/"><span class="logo-mark">ir</span><span class="logo-text">iRunner</span></a>
+        <span class="docs-label">Docs</span>
+        <nav class="docs-header-nav">
+          <a href="/docs">Home</a>
+          <a href="/docs/quickstart">Quickstart</a>
+          <a href="https://github.com/irunner-io/ir">GitHub</a>
+        </nav>
+      </div>
+    </header>
+    <div class="docs-layout">
+      <aside class="docs-sidebar">
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Getting started</div>
+          <a class="sidebar-link" href="/docs">Overview</a>
+          <a class="sidebar-link" href="/docs/quickstart">Quickstart</a>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Compute</div>
+          <a class="sidebar-link" href="/docs/compute/ec2">EC2 runners</a>
+          <a class="sidebar-link" href="/docs/compute/ecs">ECS Fargate</a>
+          <a class="sidebar-link" href="/docs/compute/eks">EKS pods</a>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Features</div>
+          <a class="sidebar-link" href="/docs/features/pools-and-labels">Pools &amp; labels</a>
+          <a class="sidebar-link" href="/docs/features/label-patterns">Label patterns</a>
+          <a class="sidebar-link" href="/docs/features/warm-pools">Warm pools</a>
+          <a class="sidebar-link" href="/docs/features/spot-instances">Spot instances</a>
+          <a class="sidebar-link" href="/docs/features/s3-cache">S3 cache</a>
+          <a class="sidebar-link" href="/docs/features/docker-layer-cache">Docker layer cache</a>
+          <a class="sidebar-link" href="/docs/features/custom-images">Custom images</a>
+          <a class="sidebar-link" href="/docs/features/arm64">ARM64 / Graviton</a>
+          <a class="sidebar-link" href="/docs/features/ephemeral-runners">Ephemeral runners</a>
+          <a class="sidebar-link" href="/docs/features/cost-tracking">Per-job cost tracking</a>
+          <a class="sidebar-link" href="/docs/features/observability">Observability</a>
+          <a class="sidebar-link" href="/docs/features/air-gap">Air-gap &amp; licensing</a>
+          <a class="sidebar-link" href="/docs/features/security">Security model</a>
+          <a class="sidebar-link" href="/docs/features/multi-platform">Multi-platform support</a>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Operations</div>
+          <a class="sidebar-link" href="/docs/operations/deployment">Deployment</a>
+          <a class="sidebar-link" href="/docs/operations/upgrades">Upgrades</a>
+          <a class="sidebar-link" href="/docs/operations/monitoring">Monitoring</a>
+          <a class="sidebar-link active" href="/docs/operations/troubleshooting">Troubleshooting</a>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Reference</div>
+          <a class="sidebar-link" href="/docs/reference/config">config.yaml</a>
+          <a class="sidebar-link" href="/docs/reference/cli">CLI reference</a>
+          <a class="sidebar-link" href="/docs/reference/api">API endpoints</a>
+          <a class="sidebar-link" href="/docs/reference/changelog">Changelog</a>
+        </div>
+      </aside>
+      <main class="docs-content">
+        <nav class="breadcrumbs">
+          <a href="/docs">Docs</a><span class="sep">/</span>Operations<span class="sep">/</span>Troubleshooting
+        </nav>
+        <article class="article">
+          <h1>Troubleshooting</h1>
+          <p class="article-intro">Common issues, their root causes, and how to resolve them. When in doubt, enable debug logging and check the control plane health endpoint.</p>
+
+          <h2>Common issues</h2>
+          <table>
+            <tr><th>Symptom</th><th>Cause</th><th>Fix</th></tr>
+            <tr>
+              <td>Job stuck in "Queued"</td>
+              <td>Webhook not reaching control plane</td>
+              <td>Verify ALB security group allows inbound 443 from GitHub IPs. Check webhook secret matches. Confirm GitHub App subscription to <code>workflow_job</code> event.</td>
+            </tr>
+            <tr>
+              <td>Runner fails to register</td>
+              <td>GitHub App permissions or expired token</td>
+              <td>Ensure the App has <em>Self-hosted runners: Read &amp; Write</em> on the org. Verify the private key in Secrets Manager is current. Check control plane logs for token refresh errors.</td>
+            </tr>
+            <tr>
+              <td>Cache returns 403 Forbidden</td>
+              <td>Wrong config path or missing IAM permissions</td>
+              <td>Confirm <code>cache.bucket</code> in config.yaml matches the actual S3 bucket name. Verify the runner instance profile has <code>s3:GetObject</code> and <code>s3:PutObject</code> on the cache bucket ARN.</td>
+            </tr>
+            <tr>
+              <td>EC2 instance not launching</td>
+              <td>Subnet capacity, AMI not found, or missing instance profile</td>
+              <td>Check subnet has available IPs. Verify AMI ID exists in the configured region. Confirm the instance profile ARN in pool config is correct and the role is assumable.</td>
+            </tr>
+            <tr>
+              <td>ECS task fails to start</td>
+              <td>Image not in ECR, task role permissions, or resource limits</td>
+              <td>Verify the image exists in ECR with the expected tag. Check the task execution role has <code>ecr:GetAuthorizationToken</code> and <code>ecr:BatchGetImage</code>. Review CPU/memory limits in task definition.</td>
+            </tr>
+            <tr>
+              <td>Control plane crashloop</td>
+              <td>config.yaml syntax error or inaccessible secrets</td>
+              <td>Check CloudWatch logs for the specific parse error. Validate config.yaml with <code>ir validate-config</code>. Ensure Secrets Manager ARNs in the task definition are accessible by the task role.</td>
+            </tr>
+            <tr>
+              <td>Spot interruption causes job failure</td>
+              <td>AWS reclaims spot instance mid-execution</td>
+              <td>Configure an on-demand fallback pool. Set <code>spot.fallback: on-demand</code> in pool config. Use warm pools to reduce cold-start impact of replacement instances.</td>
+            </tr>
+          </table>
+
+          <h2>Debug mode</h2>
+          <p>Enable verbose logging by setting the <code>IR_LOG_LEVEL</code> environment variable on the ECS task definition:</p>
+          <div class="code-block">
+            <div class="code-block-header">Terminal</div>
+            <pre><code># Update the task definition environment variables
+# In deploy/task-definition.json, add:
+{
+  "name": "IR_LOG_LEVEL",
+  "value": "debug"
+}
+
+# Re-register and deploy
+aws ecs register-task-definition --cli-input-json file://deploy/task-definition.json
+aws ecs update-service \
+  --cluster {prefix}-cluster \
+  --service {prefix}-control-plane \
+  --task-definition ir-control-plane \
+  --force-new-deployment</code></pre>
+          </div>
+
+          <h2>Health check endpoint</h2>
+          <p>The control plane exposes a <code>/health</code> endpoint that returns component status:</p>
+          <div class="code-block">
+            <div class="code-block-header">Terminal</div>
+            <pre><code>curl -s http://control-plane.{prefix}.internal:8080/health | jq .
+{
+  "status": "healthy",
+  "components": {
+    "dynamodb": "ok",
+    "sqs": "ok",
+    "s3": "ok",
+    "github": "ok"
+  },
+  "uptime_seconds": 84321
+}</code></pre>
+          </div>
+
+          <h2>Log collection with CloudWatch Logs Insights</h2>
+          <p>Use these queries to investigate issues:</p>
+          <div class="code-block">
+            <div class="code-block-header">Find errors in the last hour</div>
+            <pre><code>fields @timestamp, @message
+| filter level = "error"
+| sort @timestamp desc
+| limit 50</code></pre>
+          </div>
+          <div class="code-block">
+            <div class="code-block-header">Trace a specific job</div>
+            <pre><code>fields @timestamp, msg, level
+| filter job_id = "12345678"
+| sort @timestamp asc</code></pre>
+          </div>
+          <div class="code-block">
+            <div class="code-block-header">Find slow provisioning (> 60s)</div>
+            <pre><code>fields @timestamp, job_id, pool, duration_ms
+| filter msg = "runner_provisioned" and duration_ms > 60000
+| sort duration_ms desc
+| limit 20</code></pre>
+          </div>
+          <div class="code-block">
+            <div class="code-block-header">Count failures by pool</div>
+            <pre><code>fields pool
+| filter level = "error"
+| stats count(*) as errors by pool
+| sort errors desc</code></pre>
+          </div>
+
+          <div class="callout callout-tip">
+            <div class="callout-title">Tip</div>
+            <p>The internal <code>/internal/status</code> endpoint provides a richer view including pool states, queue depths, and active job counts. Access it from within the VPC via SSM Session Manager or a bastion host.</p>
+          </div>
+
+          <div class="page-nav">
+            <a href="/docs/operations/monitoring">&larr; Monitoring</a>
+            <a href="/docs/reference/config">config.yaml reference &rarr;</a>
+          </div>
+        </article>
+      </main>
+    </div>
+  </body>
+</html>

@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Pools &amp; Labels — iRunner Docs</title>
+    <link rel="stylesheet" href="../../docs.css">
+  </head>
+  <body>
+    <header class="docs-header">
+      <div class="docs-header-inner">
+        <a class="logo" href="/"><span class="logo-mark">ir</span><span class="logo-text">iRunner</span></a>
+        <span class="docs-label">Docs</span>
+        <nav class="docs-header-nav">
+          <a href="/docs">Home</a>
+          <a href="/docs/quickstart">Quickstart</a>
+          <a href="https://github.com/irunner-io/ir">GitHub</a>
+        </nav>
+      </div>
+    </header>
+    <div class="docs-layout">
+      <aside class="docs-sidebar">
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Getting started</div>
+          <a class="sidebar-link" href="/docs">Overview</a>
+          <a class="sidebar-link" href="/docs/quickstart">Quickstart</a>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Compute</div>
+          <a class="sidebar-link" href="/docs/compute/ec2">EC2 runners</a>
+          <a class="sidebar-link" href="/docs/compute/ecs">ECS Fargate</a>
+          <a class="sidebar-link" href="/docs/compute/eks">EKS pods</a>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Features</div>
+          <a class="sidebar-link active" href="/docs/features/pools-and-labels">Pools &amp; labels</a>
+          <a class="sidebar-link" href="/docs/features/label-patterns">Label patterns</a>
+          <a class="sidebar-link" href="/docs/features/warm-pools">Warm pools</a>
+          <a class="sidebar-link" href="/docs/features/spot-instances">Spot instances</a>
+          <a class="sidebar-link" href="/docs/features/s3-cache">S3 cache</a>
+          <a class="sidebar-link" href="/docs/features/docker-layer-cache">Docker layer cache</a>
+          <a class="sidebar-link" href="/docs/features/custom-images">Custom images</a>
+          <a class="sidebar-link" href="/docs/features/arm64">ARM64 / Graviton</a>
+          <a class="sidebar-link" href="/docs/features/ephemeral-runners">Ephemeral runners</a>
+          <a class="sidebar-link" href="/docs/features/cost-tracking">Per-job cost tracking</a>
+          <a class="sidebar-link" href="/docs/features/observability">Observability</a>
+          <a class="sidebar-link" href="/docs/features/air-gap">Air-gap &amp; licensing</a>
+          <a class="sidebar-link" href="/docs/features/security">Security model</a>
+          <a class="sidebar-link" href="/docs/features/multi-platform">Multi-platform support</a>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Operations</div>
+          <a class="sidebar-link" href="/docs/operations/deployment">Deployment</a>
+          <a class="sidebar-link" href="/docs/operations/upgrades">Upgrades</a>
+          <a class="sidebar-link" href="/docs/operations/monitoring">Monitoring</a>
+          <a class="sidebar-link" href="/docs/operations/troubleshooting">Troubleshooting</a>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Reference</div>
+          <a class="sidebar-link" href="/docs/reference/config">config.yaml</a>
+          <a class="sidebar-link" href="/docs/reference/cli">CLI reference</a>
+          <a class="sidebar-link" href="/docs/reference/api">API endpoints</a>
+          <a class="sidebar-link" href="/docs/reference/changelog">Changelog</a>
+        </div>
+      </aside>
+      <main class="docs-content">
+        <nav class="breadcrumbs">
+          <a href="/docs">Docs</a><span class="sep">/</span>Features<span class="sep">/</span>Pools &amp; labels
+        </nav>
+        <article class="article">
+          <h1>Pools &amp; Labels</h1>
+          <p class="article-intro">Pools define the compute configurations that back your CI jobs. Labels in your workflow's <code>runs-on:</code> field are mapped to pools via <code>label_mappings</code> in config.yaml, giving developers simple labels while platform teams control the underlying infrastructure.</p>
+
+          <h2>How it works</h2>
+          <p>The relationship between labels and pools is a clean separation of concerns:</p>
+          <ul>
+            <li><strong>Developers</strong> pick a label in their workflow file (e.g., <code>runs-on: ir-large</code>)</li>
+            <li><strong>Platform teams</strong> define what that label resolves to &mdash; instance type, disk size, AMI, networking, and more</li>
+          </ul>
+          <p>When a <code>workflow_job</code> webhook arrives, the control plane looks up the requested label in <code>label_mappings</code>, resolves it to a pool definition, and provisions a runner with that configuration.</p>
+
+          <h2>Pool definition</h2>
+          <p>A pool specifies everything about the compute environment for a runner:</p>
+          <table>
+            <tr><th>Field</th><th>Description</th><th>Example</th></tr>
+            <tr><td><code>name</code></td><td>Unique pool identifier</td><td><code>linux-large</code></td></tr>
+            <tr><td><code>platform</code></td><td>Compute backend</td><td><code>ec2</code>, <code>ecs</code>, <code>eks</code></td></tr>
+            <tr><td><code>instance_type</code></td><td>EC2 instance type</td><td><code>m7i.2xlarge</code></td></tr>
+            <tr><td><code>ami</code></td><td>AMI ID (EC2 only)</td><td><code>ami-0abc123def456</code></td></tr>
+            <tr><td><code>disk_size_gb</code></td><td>Root volume size</td><td><code>100</code></td></tr>
+            <tr><td><code>subnet_ids</code></td><td>VPC subnets to launch in</td><td><code>[subnet-aaa, subnet-bbb]</code></td></tr>
+            <tr><td><code>security_group_ids</code></td><td>Security groups to attach</td><td><code>[sg-123456]</code></td></tr>
+            <tr><td><code>spot_enabled</code></td><td>Use spot/preemptible instances</td><td><code>true</code></td></tr>
+            <tr><td><code>min_warm</code></td><td>Idle pre-provisioned runners</td><td><code>2</code></td></tr>
+          </table>
+
+          <h2>Label mappings</h2>
+          <p>The <code>label_mappings</code> section maps workflow labels to pool names. A single pool can serve multiple labels.</p>
+
+          <h3>Complete config.yaml example</h3>
+          <div class="code-block">
+            <div class="code-block-header">config.yaml</div>
+            <pre><code>pools:
+  - name: linux-small
+    platform: ec2
+    instance_type: m7i.large
+    ami: ami-0abc123def456
+    disk_size_gb: 50
+    subnet_ids:
+      - subnet-aaa111
+      - subnet-bbb222
+    security_group_ids:
+      - sg-runners-001
+    spot_enabled: false
+
+  - name: linux-large
+    platform: ec2
+    instance_type: m7i.2xlarge
+    ami: ami-0abc123def456
+    disk_size_gb: 100
+    subnet_ids:
+      - subnet-aaa111
+      - subnet-bbb222
+    security_group_ids:
+      - sg-runners-001
+    spot_enabled: true
+    min_warm: 2
+
+  - name: fargate-standard
+    platform: ecs
+    cpu: 2048
+    memory: 4096
+    image: "123456789.dkr.ecr.us-west-2.amazonaws.com/runner:latest"
+
+label_mappings:
+  ir-small: linux-small
+  ir-medium: linux-small
+  ir-large: linux-large
+  ir-ecs: fargate-standard
+  ir-cold: linux-large</code></pre>
+          </div>
+
+          <h2>Using labels in workflows</h2>
+          <p>Once mappings are configured, developers use labels like any other GitHub Actions runner label:</p>
+          <div class="code-block">
+            <div class="code-block-header">.github/workflows/ci.yml</div>
+            <pre><code>jobs:
+  unit-tests:
+    runs-on: ir-small
+    steps:
+      - uses: actions/checkout@v4
+      - run: make test
+
+  integration-tests:
+    runs-on: ir-large
+    steps:
+      - uses: actions/checkout@v4
+      - run: make integration-test
+
+  container-build:
+    runs-on: ir-ecs
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t myapp .</code></pre>
+          </div>
+
+          <h2>Multiple labels per job</h2>
+          <p>If a workflow specifies multiple labels (as an array), the control plane matches on the first label that exists in <code>label_mappings</code>:</p>
+          <div class="code-block">
+            <div class="code-block-header">.github/workflows/ci.yml</div>
+            <pre><code>jobs:
+  build:
+    runs-on: [ir-large, ir-cold]  # matches ir-large first
+    steps:
+      - run: echo "Running on large pool"</code></pre>
+          </div>
+
+          <div class="callout callout-note">
+            <div class="callout-title">Note</div>
+            <p>If none of the labels in <code>runs-on:</code> match any entry in <code>label_mappings</code>, the job is ignored by iRunner and left for GitHub-hosted runners or other self-hosted runners to pick up.</p>
+          </div>
+
+          <h2>Best practices</h2>
+          <ul>
+            <li>Use a consistent prefix (like <code>ir-</code>) to clearly identify iRunner labels</li>
+            <li>Map multiple meaningful labels to the same pool for readability (<code>ir-build</code>, <code>ir-ci</code> can both point to the same pool)</li>
+            <li>Start with a small number of pools and add more as workload patterns emerge</li>
+            <li>Document your label-to-pool mappings for your development team</li>
+          </ul>
+
+          <div class="page-nav">
+            <a href="/docs/quickstart">&larr; Quickstart</a>
+            <a href="/docs/features/label-patterns">Label patterns &rarr;</a>
+          </div>
+        </article>
+      </main>
+    </div>
+  </body>
+</html>

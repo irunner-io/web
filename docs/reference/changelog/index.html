@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Changelog — iRunner Docs</title>
+    <link rel="stylesheet" href="../../docs.css">
+  </head>
+  <body>
+    <header class="docs-header">
+      <div class="docs-header-inner">
+        <a class="logo" href="/"><span class="logo-mark">ir</span><span class="logo-text">iRunner</span></a>
+        <span class="docs-label">Docs</span>
+        <nav class="docs-header-nav">
+          <a href="/docs">Home</a>
+          <a href="/docs/quickstart">Quickstart</a>
+          <a href="https://github.com/irunner-io/ir">GitHub</a>
+        </nav>
+      </div>
+    </header>
+    <div class="docs-layout">
+      <aside class="docs-sidebar">
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Getting started</div>
+          <a class="sidebar-link" href="/docs">Overview</a>
+          <a class="sidebar-link" href="/docs/quickstart">Quickstart</a>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Compute</div>
+          <a class="sidebar-link" href="/docs/compute/ec2">EC2 runners</a>
+          <a class="sidebar-link" href="/docs/compute/ecs">ECS Fargate</a>
+          <a class="sidebar-link" href="/docs/compute/eks">EKS pods</a>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Features</div>
+          <a class="sidebar-link" href="/docs/features/pools-and-labels">Pools &amp; labels</a>
+          <a class="sidebar-link" href="/docs/features/label-patterns">Label patterns</a>
+          <a class="sidebar-link" href="/docs/features/warm-pools">Warm pools</a>
+          <a class="sidebar-link" href="/docs/features/spot-instances">Spot instances</a>
+          <a class="sidebar-link" href="/docs/features/s3-cache">S3 cache</a>
+          <a class="sidebar-link" href="/docs/features/docker-layer-cache">Docker layer cache</a>
+          <a class="sidebar-link" href="/docs/features/custom-images">Custom images</a>
+          <a class="sidebar-link" href="/docs/features/arm64">ARM64 / Graviton</a>
+          <a class="sidebar-link" href="/docs/features/ephemeral-runners">Ephemeral runners</a>
+          <a class="sidebar-link" href="/docs/features/cost-tracking">Per-job cost tracking</a>
+          <a class="sidebar-link" href="/docs/features/observability">Observability</a>
+          <a class="sidebar-link" href="/docs/features/air-gap">Air-gap &amp; licensing</a>
+          <a class="sidebar-link" href="/docs/features/security">Security model</a>
+          <a class="sidebar-link" href="/docs/features/multi-platform">Multi-platform support</a>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Operations</div>
+          <a class="sidebar-link" href="/docs/operations/deployment">Deployment</a>
+          <a class="sidebar-link" href="/docs/operations/upgrades">Upgrades</a>
+          <a class="sidebar-link" href="/docs/operations/monitoring">Monitoring</a>
+          <a class="sidebar-link" href="/docs/operations/troubleshooting">Troubleshooting</a>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Reference</div>
+          <a class="sidebar-link" href="/docs/reference/config">config.yaml</a>
+          <a class="sidebar-link" href="/docs/reference/cli">CLI reference</a>
+          <a class="sidebar-link" href="/docs/reference/api">API endpoints</a>
+          <a class="sidebar-link active" href="/docs/reference/changelog">Changelog</a>
+        </div>
+      </aside>
+      <main class="docs-content">
+        <nav class="breadcrumbs">
+          <a href="/docs">Docs</a><span class="sep">/</span>Reference<span class="sep">/</span>Changelog
+        </nav>
+        <article class="article">
+          <h1>Changelog</h1>
+          <p class="article-intro">Version history for iRunner. All notable changes are documented here in reverse chronological order.</p>
+
+          <h2>v0.5.4 <span style="font-weight: normal; font-size: 0.85em; color: var(--text-muted);">— 2026-06-10</span></h2>
+          <p><strong>Added</strong></p>
+          <ul>
+            <li>License enforcement with signed JWT validation at job submission time.</li>
+            <li>ALB lockdown: default deny on all unrecognized paths (returns 403).</li>
+            <li>Internal DNS routing via Route 53 private hosted zones for control plane discovery.</li>
+            <li>Cache multipart upload support for artifacts larger than 100 MB.</li>
+          </ul>
+          <p><strong>Changed</strong></p>
+          <ul>
+            <li>Control plane health check moved from <code>/healthz</code> to <code>/health</code> for ALB compatibility.</li>
+            <li>License expiry now checked every 60 seconds instead of only at startup.</li>
+          </ul>
+          <p><strong>Fixed</strong></p>
+          <ul>
+            <li>Race condition in pool capacity counter when multiple jobs start simultaneously.</li>
+            <li>Cache upload timeout for large monorepo artifacts (increased to 10 minutes).</li>
+          </ul>
+
+          <h2>v0.5.3 <span style="font-weight: normal; font-size: 0.85em; color: var(--text-muted);">— 2026-05-20</span></h2>
+          <p><strong>Added</strong></p>
+          <ul>
+            <li>Docker layer cache backed by S3 and ECR for fast image rebuilds.</li>
+            <li>ECS Fargate Spot support via <code>ecs.spot_enabled</code> pool configuration.</li>
+            <li>Prometheus metrics for Docker cache hit/miss rate.</li>
+          </ul>
+          <p><strong>Changed</strong></p>
+          <ul>
+            <li>ECS tasks now use ephemeral storage configuration (previously hardcoded at 21 GB).</li>
+          </ul>
+          <p><strong>Fixed</strong></p>
+          <ul>
+            <li>ECS task role assumption failure when cache service was enabled.</li>
+            <li>Fargate Spot interruption not triggering graceful job cancellation.</li>
+          </ul>
+
+          <h2>v0.5.2 <span style="font-weight: normal; font-size: 0.85em; color: var(--text-muted);">— 2026-04-28</span></h2>
+          <p><strong>Added</strong></p>
+          <ul>
+            <li>Label patterns with regex matching and optional constraints (<code>max_concurrency</code>, <code>allowed_repos</code>).</li>
+            <li>ARM64 / Graviton pool support with <code>arch: arm64</code> configuration.</li>
+            <li>Per-job cost tracking exposed via <code>/internal/jobs</code> endpoint.</li>
+          </ul>
+          <p><strong>Changed</strong></p>
+          <ul>
+            <li>Label routing now evaluates <code>label_patterns</code> after <code>label_mappings</code> (static mappings take priority).</li>
+            <li>AMI lookup supports both <code>ami-*</code> IDs and SSM parameter paths.</li>
+          </ul>
+          <p><strong>Fixed</strong></p>
+          <ul>
+            <li>ARM64 instances failing to register with GitHub due to incorrect runner binary architecture.</li>
+            <li>Constraint violation not returning a clear error to the GitHub check run.</li>
+          </ul>
+
+          <h2>v0.5.1 <span style="font-weight: normal; font-size: 0.85em; color: var(--text-muted);">— 2026-04-05</span></h2>
+          <p><strong>Added</strong></p>
+          <ul>
+            <li>S3 cache service with presigned URL upload/download for build artifacts.</li>
+            <li>Warm pool housekeeping: periodic reconciliation of idle instances against <code>min_warm</code>.</li>
+            <li>SQS-based spot termination handler for graceful shutdown.</li>
+          </ul>
+          <p><strong>Changed</strong></p>
+          <ul>
+            <li>Instance boot time reduced by 8 seconds via parallel package installation.</li>
+            <li>DynamoDB capacity switched to on-demand (pay-per-request) mode.</li>
+          </ul>
+          <p><strong>Fixed</strong></p>
+          <ul>
+            <li>Warm pool instances not being reused when jobs arrive within 2 seconds of launch.</li>
+            <li>S3 presigned URL expiry too short for large cache uploads (increased <code>presign_ttl</code> default to 15m).</li>
+          </ul>
+
+          <h2>v0.5.0 <span style="font-weight: normal; font-size: 0.85em; color: var(--text-muted);">— 2026-03-15</span></h2>
+          <p><strong>Added</strong></p>
+          <ul>
+            <li>Initial release of iRunner.</li>
+            <li>EC2 compute backend with on-demand and spot instance support.</li>
+            <li>GitHub App webhook integration for <code>workflow_job</code> events.</li>
+            <li>Basic pool management with <code>min_warm</code> and <code>max_total</code> controls.</li>
+            <li>CloudFormation stack for one-click infrastructure deployment.</li>
+            <li>Ephemeral runners: each job gets a fresh instance, terminated after completion.</li>
+            <li>SQS-based job queue for reliable event processing.</li>
+            <li>DynamoDB state tracking for jobs and pool capacity.</li>
+          </ul>
+
+          <div class="page-nav">
+            <a href="/docs/reference/api">&larr; API endpoints</a>
+          </div>
+        </article>
+      </main>
+    </div>
+  </body>
+</html>

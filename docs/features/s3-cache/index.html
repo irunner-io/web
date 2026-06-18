@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>S3 Cache — iRunner Docs</title>
+    <link rel="stylesheet" href="../../docs.css">
+  </head>
+  <body>
+    <header class="docs-header">
+      <div class="docs-header-inner">
+        <a class="logo" href="/"><span class="logo-mark">ir</span><span class="logo-text">iRunner</span></a>
+        <span class="docs-label">Docs</span>
+        <nav class="docs-header-nav">
+          <a href="/docs">Home</a>
+          <a href="/docs/quickstart">Quickstart</a>
+          <a href="https://github.com/irunner-io/ir">GitHub</a>
+        </nav>
+      </div>
+    </header>
+    <div class="docs-layout">
+      <aside class="docs-sidebar">
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Getting started</div>
+          <a class="sidebar-link" href="/docs">Overview</a>
+          <a class="sidebar-link" href="/docs/quickstart">Quickstart</a>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Compute</div>
+          <a class="sidebar-link" href="/docs/compute/ec2">EC2 runners</a>
+          <a class="sidebar-link" href="/docs/compute/ecs">ECS Fargate</a>
+          <a class="sidebar-link" href="/docs/compute/eks">EKS pods</a>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Features</div>
+          <a class="sidebar-link" href="/docs/features/pools-and-labels">Pools &amp; labels</a>
+          <a class="sidebar-link" href="/docs/features/label-patterns">Label patterns</a>
+          <a class="sidebar-link" href="/docs/features/warm-pools">Warm pools</a>
+          <a class="sidebar-link" href="/docs/features/spot-instances">Spot instances</a>
+          <a class="sidebar-link active" href="/docs/features/s3-cache">S3 cache</a>
+          <a class="sidebar-link" href="/docs/features/docker-layer-cache">Docker layer cache</a>
+          <a class="sidebar-link" href="/docs/features/custom-images">Custom images</a>
+          <a class="sidebar-link" href="/docs/features/arm64">ARM64 / Graviton</a>
+          <a class="sidebar-link" href="/docs/features/ephemeral-runners">Ephemeral runners</a>
+          <a class="sidebar-link" href="/docs/features/cost-tracking">Per-job cost tracking</a>
+          <a class="sidebar-link" href="/docs/features/observability">Observability</a>
+          <a class="sidebar-link" href="/docs/features/air-gap">Air-gap &amp; licensing</a>
+          <a class="sidebar-link" href="/docs/features/security">Security model</a>
+          <a class="sidebar-link" href="/docs/features/multi-platform">Multi-platform support</a>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Operations</div>
+          <a class="sidebar-link" href="/docs/operations/deployment">Deployment</a>
+          <a class="sidebar-link" href="/docs/operations/upgrades">Upgrades</a>
+          <a class="sidebar-link" href="/docs/operations/monitoring">Monitoring</a>
+          <a class="sidebar-link" href="/docs/operations/troubleshooting">Troubleshooting</a>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Reference</div>
+          <a class="sidebar-link" href="/docs/reference/config">config.yaml</a>
+          <a class="sidebar-link" href="/docs/reference/cli">CLI reference</a>
+          <a class="sidebar-link" href="/docs/reference/api">API endpoints</a>
+          <a class="sidebar-link" href="/docs/reference/changelog">Changelog</a>
+        </div>
+      </aside>
+      <main class="docs-content">
+        <nav class="breadcrumbs">
+          <a href="/docs">Docs</a><span class="sep">/</span>Features<span class="sep">/</span>S3 cache
+        </nav>
+        <article class="article">
+          <h1>S3 Cache</h1>
+          <p class="article-intro">iRunner provides a drop-in replacement for <code>actions/cache@v4</code> that routes cache data directly to S3 in your AWS region. No 10 GB cap, no cross-region latency, and multipart upload for large caches.</p>
+
+          <h2>Why replace actions/cache?</h2>
+          <p>GitHub's built-in cache has several limitations for self-hosted runners:</p>
+          <table>
+            <tr><th>Limitation</th><th>GitHub cache</th><th>iRunner S3 cache</th></tr>
+            <tr><td>Size limit per entry</td><td>10 GB</td><td>Unlimited (S3 limits)</td></tr>
+            <tr><td>Total cache per repo</td><td>10 GB</td><td>Unlimited</td></tr>
+            <tr><td>Location</td><td>GitHub's infrastructure</td><td>Your S3 bucket, your region</td></tr>
+            <tr><td>Latency</td><td>Internet round-trip</td><td>Same-region S3 (milliseconds)</td></tr>
+            <tr><td>Large file upload</td><td>Single-part, can timeout</td><td>Multipart upload</td></tr>
+            <tr><td>Retention</td><td>7 days unused</td><td>Configurable TTL (default 14 days)</td></tr>
+          </table>
+
+          <h2>Usage</h2>
+          <p>Replace <code>actions/cache@v4</code> with <code>ir-cache/cache@v1</code> in your workflow. The API is identical:</p>
+          <div class="code-block">
+            <div class="code-block-header">.github/workflows/ci.yml</div>
+            <pre><code>jobs:
+  build:
+    runs-on: ir-large
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ir-cache/cache@v1
+        with:
+          path: |
+            ~/.npm
+            node_modules
+          key: npm-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            npm-${{ runner.os }}-
+
+      - run: npm ci
+      - run: npm test</code></pre>
+          </div>
+
+          <h3>Inputs</h3>
+          <table>
+            <tr><th>Input</th><th>Description</th><th>Required</th></tr>
+            <tr><td><code>path</code></td><td>Paths to cache (supports globs and multiline)</td><td>Yes</td></tr>
+            <tr><td><code>key</code></td><td>Unique cache key for this entry</td><td>Yes</td></tr>
+            <tr><td><code>restore-keys</code></td><td>Fallback key prefixes for partial matches</td><td>No</td></tr>
+          </table>
+
+          <h3>Outputs</h3>
+          <table>
+            <tr><th>Output</th><th>Description</th></tr>
+            <tr><td><code>cache-hit</code></td><td><code>true</code> if exact key match found</td></tr>
+          </table>
+
+          <h2>How it works</h2>
+          <ol>
+            <li>The runner has an <code>IR_CACHE_URL</code> environment variable pointing to the cache service</li>
+            <li>On <strong>restore</strong>: the action calls the cache service, which looks up the key in the metadata store and streams the tarball from S3</li>
+            <li>On <strong>save</strong>: the action uploads the tarball via multipart upload to S3 through the cache service</li>
+            <li>Cache entries are keyed by repository, branch scope, and the user-provided key</li>
+          </ol>
+
+          <h2>Multipart upload</h2>
+          <p>For caches larger than 100 MB, the action automatically uses S3 multipart upload:</p>
+          <ul>
+            <li>Files are split into 64 MB parts and uploaded in parallel</li>
+            <li>Failed parts are retried individually (no need to restart the entire upload)</li>
+            <li>Supports caches up to 5 TB (S3's maximum object size)</li>
+          </ul>
+
+          <h2>Configuration</h2>
+          <p>The cache service is configured in config.yaml:</p>
+          <div class="code-block">
+            <div class="code-block-header">config.yaml</div>
+            <pre><code>cache:
+  enabled: true
+  bucket: ir-west-cache-123456789012
+  region: us-west-2
+  ttl_days: 14                    # cache entries older than this are evicted
+  max_entry_size_gb: 50           # reject uploads larger than this
+  multipart_threshold_mb: 100     # switch to multipart above this size
+  multipart_part_size_mb: 64      # size of each upload part</code></pre>
+          </div>
+
+          <h2>Cache scoping</h2>
+          <p>Cache keys are scoped hierarchically to prevent collisions and enable branch-based isolation:</p>
+          <ul>
+            <li><strong>Repository scope:</strong> caches are isolated per repository</li>
+            <li><strong>Branch scope:</strong> a feature branch can read caches from its base branch but only writes to its own namespace</li>
+            <li><strong>Key matching:</strong> exact key first, then <code>restore-keys</code> prefix matching (most recent match wins)</li>
+          </ul>
+
+          <h2>TTL and eviction</h2>
+          <p>Cache entries are automatically evicted based on the <code>ttl_days</code> setting. The eviction is implemented via S3 lifecycle rules applied to the cache bucket. Entries that haven't been accessed within the TTL window are deleted.</p>
+
+          <div class="callout callout-tip">
+            <div class="callout-title">Tip</div>
+            <p>Monitor your cache hit rate via the <code>ir_cache_hit_total</code> and <code>ir_cache_miss_total</code> Prometheus metrics. A low hit rate may indicate your cache keys are too specific.</p>
+          </div>
+
+          <h2>Migrating from actions/cache</h2>
+          <p>Migration is a one-line change per workflow step:</p>
+          <div class="code-block">
+            <div class="code-block-header">Before</div>
+            <pre><code>- uses: actions/cache@v4
+  with:
+    path: ~/.npm
+    key: npm-${{ hashFiles('package-lock.json') }}</code></pre>
+          </div>
+          <div class="code-block">
+            <div class="code-block-header">After</div>
+            <pre><code>- uses: ir-cache/cache@v1
+  with:
+    path: ~/.npm
+    key: npm-${{ hashFiles('package-lock.json') }}</code></pre>
+          </div>
+          <p>All input and output parameters are identical. No other workflow changes are needed.</p>
+
+          <div class="page-nav">
+            <a href="/docs/features/spot-instances">&larr; Spot instances</a>
+            <a href="/docs/features/docker-layer-cache">Docker layer cache &rarr;</a>
+          </div>
+        </article>
+      </main>
+    </div>
+  </body>
+</html>

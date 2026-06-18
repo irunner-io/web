@@ -1,0 +1,171 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 540" fill="none">
+  <defs>
+    <linearGradient id="bg-grad" x1="0" y1="0" x2="960" y2="540">
+      <stop offset="0%" stop-color="#140f2e"/>
+      <stop offset="100%" stop-color="#1a1440"/>
+    </linearGradient>
+    <linearGradient id="green-grad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#2edd92"/>
+      <stop offset="100%" stop-color="#1ab86e"/>
+    </linearGradient>
+    <linearGradient id="purple-grad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#7c5cfc"/>
+      <stop offset="100%" stop-color="#5b3fd4"/>
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="960" height="540" fill="url(#bg-grad)" rx="12"/>
+
+  <!-- Title -->
+  <text x="480" y="40" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="18" font-weight="700" fill="#ffffff">How iRunner Works</text>
+
+  <!-- === COLUMN 1: GitHub / Workflow === -->
+  <!-- GitHub box -->
+  <rect x="40" y="70" width="200" height="200" rx="10" fill="#211a4a" stroke="#3d3470" stroke-width="1.5"/>
+  <text x="140" y="96" text-anchor="middle" font-family="Inter, sans-serif" font-size="12" font-weight="700" fill="#b8b2d0">GITHUB</text>
+
+  <!-- Workflow file -->
+  <rect x="60" y="110" width="160" height="145" rx="6" fill="#1a1440" stroke="#2a2256" stroke-width="1"/>
+  <text x="75" y="130" font-family="ui-monospace, monospace" font-size="10" fill="#7a7494">workflow.yml</text>
+  <line x1="60" y1="138" x2="220" y2="138" stroke="#2a2256" stroke-width="1"/>
+  <text x="75" y="156" font-family="ui-monospace, monospace" font-size="10" fill="#b8b2d0">jobs:</text>
+  <text x="75" y="172" font-family="ui-monospace, monospace" font-size="10" fill="#b8b2d0">  build:</text>
+  <text x="75" y="188" font-family="ui-monospace, monospace" font-size="10" fill="#2edd92">    runs-on: ir-ecs-2cpu-4g</text>
+  <text x="75" y="204" font-family="ui-monospace, monospace" font-size="10" fill="#b8b2d0">  deploy:</text>
+  <text x="75" y="220" font-family="ui-monospace, monospace" font-size="10" fill="#2edd92">    runs-on: ir-ec2-large</text>
+  <text x="75" y="236" font-family="ui-monospace, monospace" font-size="10" fill="#b8b2d0">  test:</text>
+  <text x="75" y="252" font-family="ui-monospace, monospace" font-size="10" fill="#2edd92">    runs-on: ir-eks-small</text>
+
+  <!-- Label explanation -->
+  <rect x="40" y="285" width="200" height="44" rx="6" fill="rgba(46, 221, 146, 0.08)" stroke="rgba(46, 221, 146, 0.25)" stroke-width="1"/>
+  <text x="140" y="305" text-anchor="middle" font-family="Inter, sans-serif" font-size="10" font-weight="600" fill="#2edd92">Label defines resource type</text>
+  <text x="140" y="320" text-anchor="middle" font-family="Inter, sans-serif" font-size="10" fill="#7a7494">&amp; specs (CPU, memory, backend)</text>
+
+  <!-- === Arrow 1: GitHub → Control Plane === -->
+  <path d="M240 170 L300 170" stroke="#7c5cfc" stroke-width="2" stroke-dasharray="6 3" marker-end="url(#arrow)"/>
+  <text x="270" y="160" text-anchor="middle" font-family="Inter, sans-serif" font-size="9" fill="#b8b2d0">webhook</text>
+
+  <!-- Arrow marker -->
+  <defs>
+    <marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+      <path d="M0,0 L8,4 L0,8" fill="none" stroke="#7c5cfc" stroke-width="1.5"/>
+    </marker>
+    <marker id="arrow-green" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+      <path d="M0,0 L8,4 L0,8" fill="none" stroke="#2edd92" stroke-width="1.5"/>
+    </marker>
+  </defs>
+
+  <!-- === COLUMN 2: Control Plane === -->
+  <rect x="300" y="70" width="220" height="260" rx="10" fill="#211a4a" stroke="#3d3470" stroke-width="1.5"/>
+  <text x="410" y="96" text-anchor="middle" font-family="Inter, sans-serif" font-size="12" font-weight="700" fill="#b8b2d0">iRUNNER CONTROL PLANE</text>
+
+  <!-- Pool matching -->
+  <rect x="320" y="110" width="180" height="60" rx="6" fill="#1a1440" stroke="#7c5cfc" stroke-width="1"/>
+  <text x="410" y="132" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" font-weight="600" fill="#ffffff">Label → Pool Matching</text>
+  <text x="410" y="150" text-anchor="middle" font-family="ui-monospace, monospace" font-size="9" fill="#7a7494">label_mappings + label_patterns</text>
+  <text x="410" y="163" text-anchor="middle" font-family="ui-monospace, monospace" font-size="9" fill="#7a7494">constraints validation</text>
+
+  <!-- Pool selection -->
+  <rect x="320" y="182" width="180" height="55" rx="6" fill="#1a1440" stroke="#2a2256" stroke-width="1"/>
+  <text x="410" y="203" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" font-weight="600" fill="#ffffff">Pool Selection</text>
+  <text x="410" y="220" text-anchor="middle" font-family="Inter, sans-serif" font-size="9" fill="#7a7494">Check warm capacity first</text>
+  <text x="410" y="233" text-anchor="middle" font-family="Inter, sans-serif" font-size="9" fill="#7a7494">Cold provision if needed</text>
+
+  <!-- Provisioning decision -->
+  <rect x="320" y="248" width="85" height="36" rx="6" fill="rgba(46, 221, 146, 0.12)" stroke="rgba(46, 221, 146, 0.3)" stroke-width="1"/>
+  <text x="362" y="264" text-anchor="middle" font-family="Inter, sans-serif" font-size="9" font-weight="600" fill="#2edd92">Warm</text>
+  <text x="362" y="277" text-anchor="middle" font-family="Inter, sans-serif" font-size="8" fill="#7a7494">instant</text>
+
+  <rect x="415" y="248" width="85" height="36" rx="6" fill="rgba(124, 92, 252, 0.12)" stroke="rgba(124, 92, 252, 0.3)" stroke-width="1"/>
+  <text x="457" y="264" text-anchor="middle" font-family="Inter, sans-serif" font-size="9" font-weight="600" fill="#c4b5fd">Cold start</text>
+  <text x="457" y="277" text-anchor="middle" font-family="Inter, sans-serif" font-size="8" fill="#7a7494">15-90s</text>
+
+  <!-- Internal arrow -->
+  <path d="M410 170 L410 182" stroke="#7c5cfc" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <path d="M410 237 L362 248" stroke="#2edd92" stroke-width="1" marker-end="url(#arrow-green)"/>
+  <path d="M410 237 L457 248" stroke="#7c5cfc" stroke-width="1" marker-end="url(#arrow)"/>
+
+  <!-- === Arrow 2: Control Plane → Compute === -->
+  <path d="M520 200 L580 200" stroke="#2edd92" stroke-width="2" marker-end="url(#arrow-green)"/>
+  <text x="550" y="190" text-anchor="middle" font-family="Inter, sans-serif" font-size="9" fill="#b8b2d0">provision</text>
+
+  <!-- === COLUMN 3: Compute (Your VPC) === -->
+  <!-- VPC boundary -->
+  <rect x="580" y="55" width="350" height="290" rx="10" fill="none" stroke="#3d3470" stroke-width="1.5" stroke-dasharray="8 4"/>
+  <text x="755" y="76" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" font-weight="600" fill="#7a7494">YOUR VPC — PRIVATE SUBNETS</text>
+
+  <!-- EC2 -->
+  <rect x="600" y="90" width="140" height="70" rx="8" fill="#211a4a" stroke="#3d3470" stroke-width="1"/>
+  <text x="670" y="112" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#ffffff">EC2</text>
+  <text x="670" y="128" text-anchor="middle" font-family="Inter, sans-serif" font-size="9" fill="#7a7494">Custom AMI, Docker, GPU</text>
+  <text x="670" y="143" text-anchor="middle" font-family="Inter, sans-serif" font-size="9" fill="#7a7494">Spot + On-demand</text>
+  <text x="670" y="155" text-anchor="middle" font-family="ui-monospace, monospace" font-size="8" fill="#2edd92">ir-ec2-large</text>
+
+  <!-- ECS -->
+  <rect x="600" y="172" width="140" height="70" rx="8" fill="#211a4a" stroke="#3d3470" stroke-width="1"/>
+  <text x="670" y="194" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#ffffff">ECS Fargate</text>
+  <text x="670" y="210" text-anchor="middle" font-family="Inter, sans-serif" font-size="9" fill="#7a7494">Serverless containers</text>
+  <text x="670" y="225" text-anchor="middle" font-family="Inter, sans-serif" font-size="9" fill="#7a7494">Fargate Spot</text>
+  <text x="670" y="237" text-anchor="middle" font-family="ui-monospace, monospace" font-size="8" fill="#2edd92">ir-ecs-2cpu-4g</text>
+
+  <!-- EKS -->
+  <rect x="600" y="254" width="140" height="70" rx="8" fill="#211a4a" stroke="#3d3470" stroke-width="1"/>
+  <text x="670" y="276" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#ffffff">EKS</text>
+  <text x="670" y="292" text-anchor="middle" font-family="Inter, sans-serif" font-size="9" fill="#7a7494">Kubernetes pods</text>
+  <text x="670" y="307" text-anchor="middle" font-family="Inter, sans-serif" font-size="9" fill="#7a7494">Existing cluster</text>
+  <text x="670" y="319" text-anchor="middle" font-family="ui-monospace, monospace" font-size="8" fill="#2edd92">ir-eks-small</text>
+
+  <!-- Ephemeral badge -->
+  <rect x="760" y="90" width="150" height="234" rx="8" fill="rgba(124, 92, 252, 0.05)" stroke="rgba(124, 92, 252, 0.2)" stroke-width="1" stroke-dasharray="4 2"/>
+  <text x="835" y="112" text-anchor="middle" font-family="Inter, sans-serif" font-size="10" font-weight="600" fill="#c4b5fd">EPHEMERAL</text>
+  <text x="835" y="130" text-anchor="middle" font-family="Inter, sans-serif" font-size="9" fill="#7a7494">Destroyed after</text>
+  <text x="835" y="144" text-anchor="middle" font-family="Inter, sans-serif" font-size="9" fill="#7a7494">each job</text>
+
+  <text x="835" y="175" text-anchor="middle" font-family="Inter, sans-serif" font-size="9" fill="#7a7494">No persistent state</text>
+  <text x="835" y="200" text-anchor="middle" font-family="Inter, sans-serif" font-size="9" fill="#7a7494">No credential leakage</text>
+  <text x="835" y="225" text-anchor="middle" font-family="Inter, sans-serif" font-size="9" fill="#7a7494">Clean environment</text>
+  <text x="835" y="250" text-anchor="middle" font-family="Inter, sans-serif" font-size="9" fill="#7a7494">every time</text>
+
+  <!-- Recycle icon as text -->
+  <text x="835" y="290" text-anchor="middle" font-family="Inter, sans-serif" font-size="24" fill="#7c5cfc">♻</text>
+  <text x="835" y="312" text-anchor="middle" font-family="Inter, sans-serif" font-size="9" font-weight="600" fill="#c4b5fd">auto-terminate</text>
+
+  <!-- === BOTTOM: Key properties === -->
+  <rect x="40" y="370" width="880" height="150" rx="10" fill="#211a4a" stroke="#3d3470" stroke-width="1"/>
+
+  <!-- Row of properties -->
+  <text x="480" y="396" text-anchor="middle" font-family="Inter, sans-serif" font-size="12" font-weight="700" fill="#ffffff">Key Properties</text>
+
+  <!-- Property 1 -->
+  <rect x="65" y="415" width="195" height="85" rx="6" fill="#1a1440" stroke="#2a2256" stroke-width="1"/>
+  <text x="162" y="438" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#2edd92">Label-driven</text>
+  <text x="162" y="456" text-anchor="middle" font-family="Inter, sans-serif" font-size="9" fill="#b8b2d0">Workflow defines what it needs.</text>
+  <text x="162" y="470" text-anchor="middle" font-family="Inter, sans-serif" font-size="9" fill="#b8b2d0">Platform team controls what's</text>
+  <text x="162" y="484" text-anchor="middle" font-family="Inter, sans-serif" font-size="9" fill="#b8b2d0">available behind each label.</text>
+
+  <!-- Property 2 -->
+  <rect x="275" y="415" width="195" height="85" rx="6" fill="#1a1440" stroke="#2a2256" stroke-width="1"/>
+  <text x="372" y="438" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#2edd92">Private network</text>
+  <text x="372" y="456" text-anchor="middle" font-family="Inter, sans-serif" font-size="9" fill="#b8b2d0">All compute in private subnets.</text>
+  <text x="372" y="470" text-anchor="middle" font-family="Inter, sans-serif" font-size="9" fill="#b8b2d0">Single HMAC webhook is the</text>
+  <text x="372" y="484" text-anchor="middle" font-family="Inter, sans-serif" font-size="9" fill="#b8b2d0">only public surface.</text>
+
+  <!-- Property 3 -->
+  <rect x="485" y="415" width="195" height="85" rx="6" fill="#1a1440" stroke="#2a2256" stroke-width="1"/>
+  <text x="582" y="438" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#2edd92">Warm or cold</text>
+  <text x="582" y="456" text-anchor="middle" font-family="Inter, sans-serif" font-size="9" fill="#b8b2d0">Pre-provisioned for instant start,</text>
+  <text x="582" y="470" text-anchor="middle" font-family="Inter, sans-serif" font-size="9" fill="#b8b2d0">or cold-provisioned on demand.</text>
+  <text x="582" y="484" text-anchor="middle" font-family="Inter, sans-serif" font-size="9" fill="#b8b2d0">You control the tradeoff.</text>
+
+  <!-- Property 4 -->
+  <rect x="695" y="415" width="195" height="85" rx="6" fill="#1a1440" stroke="#2a2256" stroke-width="1"/>
+  <text x="792" y="438" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#2edd92">Ephemeral</text>
+  <text x="792" y="456" text-anchor="middle" font-family="Inter, sans-serif" font-size="9" fill="#b8b2d0">Every runner is destroyed after</text>
+  <text x="792" y="470" text-anchor="middle" font-family="Inter, sans-serif" font-size="9" fill="#b8b2d0">one job. No persistent state.</text>
+  <text x="792" y="484" text-anchor="middle" font-family="Inter, sans-serif" font-size="9" fill="#b8b2d0">Zero attack surface.</text>
+</svg>

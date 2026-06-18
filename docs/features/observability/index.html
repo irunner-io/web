@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Observability — iRunner Docs</title>
+    <link rel="stylesheet" href="../../docs.css">
+  </head>
+  <body>
+    <header class="docs-header">
+      <div class="docs-header-inner">
+        <a class="logo" href="/"><span class="logo-mark">ir</span><span class="logo-text">iRunner</span></a>
+        <span class="docs-label">Docs</span>
+        <nav class="docs-header-nav">
+          <a href="/docs">Home</a>
+          <a href="/docs/quickstart">Quickstart</a>
+          <a href="https://github.com/irunner-io/ir">GitHub</a>
+        </nav>
+      </div>
+    </header>
+    <div class="docs-layout">
+      <aside class="docs-sidebar">
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Getting started</div>
+          <a class="sidebar-link" href="/docs">Overview</a>
+          <a class="sidebar-link" href="/docs/quickstart">Quickstart</a>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Compute</div>
+          <a class="sidebar-link" href="/docs/compute/ec2">EC2 runners</a>
+          <a class="sidebar-link" href="/docs/compute/ecs">ECS Fargate</a>
+          <a class="sidebar-link" href="/docs/compute/eks">EKS pods</a>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Features</div>
+          <a class="sidebar-link" href="/docs/features/pools-and-labels">Pools &amp; labels</a>
+          <a class="sidebar-link" href="/docs/features/label-patterns">Label patterns</a>
+          <a class="sidebar-link" href="/docs/features/warm-pools">Warm pools</a>
+          <a class="sidebar-link" href="/docs/features/spot-instances">Spot instances</a>
+          <a class="sidebar-link" href="/docs/features/s3-cache">S3 cache</a>
+          <a class="sidebar-link" href="/docs/features/docker-layer-cache">Docker layer cache</a>
+          <a class="sidebar-link" href="/docs/features/custom-images">Custom images</a>
+          <a class="sidebar-link" href="/docs/features/arm64">ARM64 / Graviton</a>
+          <a class="sidebar-link" href="/docs/features/ephemeral-runners">Ephemeral runners</a>
+          <a class="sidebar-link" href="/docs/features/cost-tracking">Per-job cost tracking</a>
+          <a class="sidebar-link active" href="/docs/features/observability">Observability</a>
+          <a class="sidebar-link" href="/docs/features/air-gap">Air-gap &amp; licensing</a>
+          <a class="sidebar-link" href="/docs/features/security">Security model</a>
+          <a class="sidebar-link" href="/docs/features/multi-platform">Multi-platform support</a>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Operations</div>
+          <a class="sidebar-link" href="/docs/operations/deployment">Deployment</a>
+          <a class="sidebar-link" href="/docs/operations/upgrades">Upgrades</a>
+          <a class="sidebar-link" href="/docs/operations/monitoring">Monitoring</a>
+          <a class="sidebar-link" href="/docs/operations/troubleshooting">Troubleshooting</a>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Reference</div>
+          <a class="sidebar-link" href="/docs/reference/config">config.yaml</a>
+          <a class="sidebar-link" href="/docs/reference/cli">CLI reference</a>
+          <a class="sidebar-link" href="/docs/reference/api">API endpoints</a>
+          <a class="sidebar-link" href="/docs/reference/changelog">Changelog</a>
+        </div>
+      </aside>
+      <main class="docs-content">
+        <nav class="breadcrumbs">
+          <a href="/docs">Docs</a><span class="sep">/</span>Features<span class="sep">/</span>Observability
+        </nav>
+        <article class="article">
+          <h1>Observability</h1>
+          <p class="article-intro">iRunner provides full observability into your CI infrastructure through OpenTelemetry traces, Prometheus metrics, CloudWatch integration, and structured JSON logs. Understand job lifecycle, diagnose failures, and track fleet health.</p>
+
+          <h2>Distributed tracing</h2>
+          <p>Every job produces an OpenTelemetry trace that spans the entire lifecycle from webhook receipt to runner termination. Traces are exported via OTLP to your configured collector.</p>
+
+          <h3>Trace span structure</h3>
+          <div class="code-block">
+            <div class="code-block-header">Trace spans</div>
+            <pre><code>job (root span)
+├── webhook.receive          # Webhook received and validated
+├── webhook.process          # Label lookup and pool resolution
+├── runner.provision         # Compute resource creation
+│   ├── ec2.run_instance     # (or ecs.run_task / eks.create_pod)
+│   └── runner.bootstrap     # Runner agent startup and registration
+├── runner.idle              # Waiting for GitHub to assign the job
+├── job.execute              # Job execution (GitHub controls this)
+└── runner.terminate         # De-register and destroy compute</code></pre>
+          </div>
+
+          <h3>Span attributes</h3>
+          <table>
+            <tr><th>Attribute</th><th>Description</th></tr>
+            <tr><td><code>ir.job.id</code></td><td>GitHub workflow job ID</td></tr>
+            <tr><td><code>ir.job.repo</code></td><td>Repository full name</td></tr>
+            <tr><td><code>ir.job.workflow</code></td><td>Workflow filename</td></tr>
+            <tr><td><code>ir.pool.name</code></td><td>Pool that served the job</td></tr>
+            <tr><td><code>ir.runner.instance_id</code></td><td>EC2 instance ID / ECS task ARN / Pod name</td></tr>
+            <tr><td><code>ir.runner.spot</code></td><td>Whether spot pricing was used</td></tr>
+            <tr><td><code>ir.runner.arch</code></td><td>Architecture (amd64 / arm64)</td></tr>
+          </table>
+
+          <h3>Configuration</h3>
+          <div class="code-block">
+            <div class="code-block-header">config.yaml</div>
+            <pre><code>observability:
+  tracing:
+    enabled: true
+    exporter: otlp
+    endpoint: "http://otel-collector.monitoring:4317"
+    sampling_rate: 1.0    # 1.0 = trace every job</code></pre>
+          </div>
+
+          <h2>Prometheus metrics</h2>
+          <p>The control plane exposes a <code>/metrics</code> endpoint in Prometheus exposition format. Key metrics:</p>
+
+          <h3>Job metrics</h3>
+          <div class="code-block">
+            <div class="code-block-header">Prometheus metrics</div>
+            <pre><code># Jobs in queue waiting for a runner
+ir_queue_depth{pool}
+
+# Jobs currently executing
+ir_jobs_running{pool, instance_type}
+
+# Total jobs completed (counter)
+ir_jobs_completed_total{pool, status, spot}
+
+# Job duration histogram
+ir_job_duration_seconds_bucket{pool, status}
+
+# Time from webhook to job start (queue + provision time)
+ir_job_pickup_duration_seconds_bucket{pool}
+
+# Provisioning duration (time to create compute resource)
+ir_provision_duration_seconds_bucket{pool, platform}</code></pre>
+          </div>
+
+          <h3>Pool metrics</h3>
+          <div class="code-block">
+            <div class="code-block-header">Prometheus metrics</div>
+            <pre><code># Current pool utilization
+ir_pool_runners_active{pool}
+ir_pool_runners_idle{pool}
+ir_pool_runners_total{pool}
+
+# Warm pool status
+ir_pool_warm_target{pool}
+ir_pool_warm_actual{pool}
+
+# Pool capacity (max concurrent runners)
+ir_pool_capacity{pool}</code></pre>
+          </div>
+
+          <h3>Infrastructure metrics</h3>
+          <div class="code-block">
+            <div class="code-block-header">Prometheus metrics</div>
+            <pre><code># Webhook processing
+ir_webhook_received_total{event_type}
+ir_webhook_processing_duration_seconds_bucket{}
+ir_webhook_errors_total{error_type}
+
+# API rate limiting (GitHub API)
+ir_github_api_requests_total{endpoint}
+ir_github_api_rate_remaining{resource}
+
+# Cache service
+ir_cache_hit_total{repo}
+ir_cache_miss_total{repo}
+ir_cache_upload_bytes_total{repo}
+ir_cache_download_bytes_total{repo}</code></pre>
+          </div>
+
+          <h2>CloudWatch integration</h2>
+          <p>Metrics are published to CloudWatch under the <code>iRunner</code> namespace. This enables native AWS alarms, dashboards, and anomaly detection without running a separate Prometheus stack.</p>
+          <div class="code-block">
+            <div class="code-block-header">config.yaml</div>
+            <pre><code>observability:
+  cloudwatch:
+    enabled: true
+    namespace: "iRunner"
+    region: us-west-2
+    publish_interval: 60s</code></pre>
+          </div>
+
+          <h2>Structured logging</h2>
+          <p>All iRunner components emit structured JSON logs to stdout. Log fields include:</p>
+          <div class="code-block">
+            <div class="code-block-header">Example log entry</div>
+            <pre><code>{
+  "level": "info",
+  "ts": "2024-03-15T10:23:45.123Z",
+  "msg": "runner provisioned",
+  "component": "orchestrator",
+  "job_id": "12345678",
+  "repo": "myorg/myrepo",
+  "pool": "linux-large",
+  "instance_id": "i-0abc123def456",
+  "instance_type": "m7i.2xlarge",
+  "spot": true,
+  "provision_duration_ms": 2340
+}</code></pre>
+          </div>
+          <p>Logs are designed for ingestion into CloudWatch Logs, Datadog, Splunk, or any JSON-capable log aggregator.</p>
+
+          <h2>Health checks</h2>
+          <p>The control plane exposes health endpoints:</p>
+          <table>
+            <tr><th>Endpoint</th><th>Purpose</th></tr>
+            <tr><td><code>/health</code></td><td>Basic liveness check (ALB target group health)</td></tr>
+            <tr><td><code>/ready</code></td><td>Readiness check (dependencies connected)</td></tr>
+            <tr><td><code>/internal/status</code></td><td>Detailed status including pool states, queue depth, version</td></tr>
+          </table>
+
+          <div class="callout callout-tip">
+            <div class="callout-title">Tip</div>
+            <p>Set up alerts on <code>ir_queue_depth</code> (jobs waiting too long) and <code>ir_pool_warm_actual &lt; ir_pool_warm_target</code> (warm pool below target) to catch issues before they impact developers.</p>
+          </div>
+
+          <div class="page-nav">
+            <a href="/docs/features/cost-tracking">&larr; Per-job cost tracking</a>
+            <a href="/docs/features/air-gap">Air-gap &amp; licensing &rarr;</a>
+          </div>
+        </article>
+      </main>
+    </div>
+  </body>
+</html>

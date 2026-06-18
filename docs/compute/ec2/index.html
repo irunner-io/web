@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>EC2 runners — iRunner Docs</title>
+    <link rel="stylesheet" href="../../docs.css">
+  </head>
+  <body>
+    <header class="docs-header">
+      <div class="docs-header-inner">
+        <a class="logo" href="/"><span class="logo-mark">ir</span><span class="logo-text">iRunner</span></a>
+        <span class="docs-label">Docs</span>
+        <nav class="docs-header-nav">
+          <a href="/docs">Home</a>
+          <a href="/docs/quickstart">Quickstart</a>
+          <a href="https://github.com/irunner-io/ir">GitHub</a>
+        </nav>
+      </div>
+    </header>
+    <div class="docs-layout">
+      <aside class="docs-sidebar">
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Getting started</div>
+          <a class="sidebar-link" href="/docs">Overview</a>
+          <a class="sidebar-link" href="/docs/quickstart">Quickstart</a>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Compute</div>
+          <a class="sidebar-link active" href="/docs/compute/ec2">EC2 runners</a>
+          <a class="sidebar-link" href="/docs/compute/ecs">ECS Fargate</a>
+          <a class="sidebar-link" href="/docs/compute/eks">EKS pods</a>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Features</div>
+          <a class="sidebar-link" href="/docs/features/pools-and-labels">Pools &amp; labels</a>
+          <a class="sidebar-link" href="/docs/features/label-patterns">Label patterns</a>
+          <a class="sidebar-link" href="/docs/features/warm-pools">Warm pools</a>
+          <a class="sidebar-link" href="/docs/features/spot-instances">Spot instances</a>
+          <a class="sidebar-link" href="/docs/features/s3-cache">S3 cache</a>
+          <a class="sidebar-link" href="/docs/features/docker-layer-cache">Docker layer cache</a>
+          <a class="sidebar-link" href="/docs/features/custom-images">Custom images</a>
+          <a class="sidebar-link" href="/docs/features/arm64">ARM64 / Graviton</a>
+          <a class="sidebar-link" href="/docs/features/ephemeral-runners">Ephemeral runners</a>
+          <a class="sidebar-link" href="/docs/features/cost-tracking">Per-job cost tracking</a>
+          <a class="sidebar-link" href="/docs/features/observability">Observability</a>
+          <a class="sidebar-link" href="/docs/features/air-gap">Air-gap &amp; licensing</a>
+          <a class="sidebar-link" href="/docs/features/security">Security model</a>
+          <a class="sidebar-link" href="/docs/features/multi-platform">Multi-platform support</a>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Operations</div>
+          <a class="sidebar-link" href="/docs/operations/deployment">Deployment</a>
+          <a class="sidebar-link" href="/docs/operations/upgrades">Upgrades</a>
+          <a class="sidebar-link" href="/docs/operations/monitoring">Monitoring</a>
+          <a class="sidebar-link" href="/docs/operations/troubleshooting">Troubleshooting</a>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Reference</div>
+          <a class="sidebar-link" href="/docs/reference/config">config.yaml</a>
+          <a class="sidebar-link" href="/docs/reference/cli">CLI reference</a>
+          <a class="sidebar-link" href="/docs/reference/api">API endpoints</a>
+          <a class="sidebar-link" href="/docs/reference/changelog">Changelog</a>
+        </div>
+      </aside>
+      <main class="docs-content">
+        <nav class="breadcrumbs">
+          <a href="/docs">Docs</a><span class="sep">/</span>Compute<span class="sep">/</span>EC2 runners
+        </nav>
+        <article class="article">
+          <h1>EC2 runners</h1>
+          <p class="article-intro">EC2 is iRunner's full virtual machine compute backend. Each job gets a dedicated EC2 instance with complete isolation, root access, and support for any workload including Docker builds, GPU tasks, and nested virtualization.</p>
+
+          <h2>Overview</h2>
+          <p>When a workflow job targets an EC2 pool, iRunner launches a fresh EC2 instance (or claims one from a warm pool), registers a GitHub Actions runner on it, and tears the instance down after the job completes. The instance is fully ephemeral — nothing persists between jobs.</p>
+
+          <div class="callout callout-tip">
+            <div class="callout-title">Best for</div>
+            <p>Docker builds, GPU workloads, nested virtualization, large disk needs, custom kernels, and any job that requires full VM-level isolation.</p>
+          </div>
+
+          <h2>Instance types</h2>
+          <p>Any EC2 instance type is supported. Choose based on your workload requirements:</p>
+          <table>
+            <tr><th>Family</th><th>Example</th><th>Use case</th></tr>
+            <tr><td>General purpose</td><td>m7i.large, m7i.xlarge</td><td>Balanced CPU/memory for most CI jobs</td></tr>
+            <tr><td>Compute optimized</td><td>c7g.xlarge, c7i.2xlarge</td><td>Compilation, test suites</td></tr>
+            <tr><td>Burstable</td><td>t4g.medium, t3.large</td><td>Lightweight jobs, cost-sensitive</td></tr>
+            <tr><td>GPU</td><td>g5.xlarge, g5.2xlarge</td><td>ML training, GPU-accelerated builds</td></tr>
+            <tr><td>ARM64 / Graviton</td><td>c7g.large, m7g.xlarge</td><td>ARM builds, cost-efficient compute</td></tr>
+          </table>
+
+          <h2>Custom AMIs</h2>
+          <p>Control the base image your runners use:</p>
+          <ul>
+            <li><code>ami: "auto"</code> — uses the latest iRunner-maintained Ubuntu 22.04 AMI (updated weekly)</li>
+            <li><code>ami: "ami-0abcdef1234567890"</code> — use your own custom AMI with pre-installed tools</li>
+          </ul>
+          <div class="callout callout-tip">
+            <div class="callout-title">Tip</div>
+            <p>Custom AMIs dramatically reduce cold start time. Pre-bake Docker images, language runtimes, and large dependencies into your AMI to skip install steps.</p>
+          </div>
+
+          <h2>Disk configuration</h2>
+          <p>Set the root EBS volume size per pool with <code>disk_size_gb</code>. Defaults to 50 GB if not specified.</p>
+          <div class="code-block">
+            <div class="code-block-header">config.yaml (excerpt)</div>
+            <pre><code>disk_size_gb: 100   # 100 GB gp3 root volume</code></pre>
+          </div>
+
+          <h2>Networking</h2>
+          <p>EC2 runners launch in private subnets within your VPC. The control plane assigns instances to subnets from the pool configuration:</p>
+          <ul>
+            <li>Instances run in <strong>private subnets</strong> with no public IP by default</li>
+            <li>Internet access is provided via NAT gateway</li>
+            <li><strong>Security groups</strong> control inbound/outbound traffic (default: egress-only)</li>
+            <li>Instances communicate with the control plane over the internal ALB</li>
+          </ul>
+
+          <h2>Instance profile</h2>
+          <p>Attach an IAM instance profile to grant runners AWS permissions (e.g., ECR pull, S3 access, Secrets Manager):</p>
+          <div class="code-block">
+            <div class="code-block-header">config.yaml (excerpt)</div>
+            <pre><code>instance_profile: "arn:aws:iam::123456789012:instance-profile/ir-runner-profile"</code></pre>
+          </div>
+
+          <h2>Spot instances</h2>
+          <p>Enable Spot for up to 90% cost savings on interruptible workloads:</p>
+          <div class="code-block">
+            <div class="code-block-header">config.yaml (excerpt)</div>
+            <pre><code>spot_enabled: true</code></pre>
+          </div>
+          <p>iRunner automatically falls back to on-demand if Spot capacity is unavailable.</p>
+
+          <h2>Warm pools</h2>
+          <p>Keep pre-launched instances ready for instant job pickup:</p>
+          <div class="code-block">
+            <div class="code-block-header">config.yaml (excerpt)</div>
+            <pre><code>min_warm: 2   # always keep 2 instances warm and registered</code></pre>
+          </div>
+          <p>Warm pool instances are pre-registered as GitHub runners and can pick up jobs in under 1 second. The control plane maintains the target count by launching replacements as warm instances are consumed.</p>
+
+          <h2>Packages</h2>
+          <p>Install packages on first boot using the <code>packages</code> list. These are installed via <code>apt-get</code> before the runner starts:</p>
+          <div class="code-block">
+            <div class="code-block-header">config.yaml (excerpt)</div>
+            <pre><code>packages:
+  - docker.io
+  - python3
+  - python3-pip
+  - nodejs
+  - npm
+  - build-essential</code></pre>
+          </div>
+
+          <h2>Sudoers</h2>
+          <p>Grant the runner user additional sudo permissions with <code>sudoers_extra</code>:</p>
+          <div class="code-block">
+            <div class="code-block-header">config.yaml (excerpt)</div>
+            <pre><code>sudoers_extra: "runner ALL=(ALL) NOPASSWD: /usr/bin/apt-get, /usr/bin/systemctl"</code></pre>
+          </div>
+
+          <h2>Docker access</h2>
+          <p>When <code>docker.io</code> is in the packages list, the runner user is automatically added to the <code>docker</code> group. This means workflows can run <code>docker build</code>, <code>docker compose</code>, and other Docker commands without <code>sudo</code>.</p>
+
+          <div class="callout callout-tip">
+            <div class="callout-title">Note</div>
+            <p>The docker group is added after package installation during instance bootstrap. The runner process starts after group membership is applied, so no logout/login cycle is needed.</p>
+          </div>
+
+          <h2>Full pool configuration example</h2>
+          <div class="code-block">
+            <div class="code-block-header">config.yaml</div>
+            <pre><code>pools:
+  - name: ec2-large
+    driver: ec2
+    labels:
+      - ir-ec2-large
+      - ir-docker
+    instance_type: m7i.large
+    ami: "auto"
+    disk_size_gb: 100
+    spot_enabled: true
+    min_warm: 2
+    instance_profile: "arn:aws:iam::123456789012:instance-profile/ir-runner-profile"
+    subnets:
+      - subnet-0a1b2c3d4e5f6a7b8
+      - subnet-9c8d7e6f5a4b3c2d1
+    security_groups:
+      - sg-0123456789abcdef0
+    packages:
+      - docker.io
+      - python3
+      - python3-pip
+      - build-essential
+      - jq
+      - unzip
+    sudoers_extra: "runner ALL=(ALL) NOPASSWD: ALL"</code></pre>
+          </div>
+
+          <h2>Workflow usage</h2>
+          <p>Reference the pool label in your workflow's <code>runs-on</code> field:</p>
+          <div class="code-block">
+            <div class="code-block-header">.github/workflows/ci.yml</div>
+            <pre><code>jobs:
+  build:
+    runs-on: ir-ec2-large
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t myapp .
+      - run: docker compose up -d
+      - run: make integration-test</code></pre>
+          </div>
+
+          <h2>Cold start times</h2>
+          <table>
+            <tr><th>Configuration</th><th>Cold start</th></tr>
+            <tr><td>No warm pool, default AMI</td><td>45-90 seconds</td></tr>
+            <tr><td>No warm pool, custom AMI (pre-baked)</td><td>30-60 seconds</td></tr>
+            <tr><td>Warm pool (<code>min_warm &gt; 0</code>)</td><td>&lt; 1 second (instant)</td></tr>
+          </table>
+
+          <div class="callout callout-tip">
+            <div class="callout-title">Tip</div>
+            <p>For production workloads, set <code>min_warm: 1</code> or higher to eliminate cold starts. Warm instances cost only the EC2 hourly rate while idle — typically $0.03-0.10/hour depending on instance type.</p>
+          </div>
+
+          <div class="page-nav">
+            <a href="/docs/quickstart">&larr; Quickstart</a>
+            <a href="/docs/compute/ecs">ECS Fargate &rarr;</a>
+          </div>
+        </article>
+      </main>
+    </div>
+  </body>
+</html>

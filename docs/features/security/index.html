@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Security Model — iRunner Docs</title>
+    <link rel="stylesheet" href="../../docs.css">
+  </head>
+  <body>
+    <header class="docs-header">
+      <div class="docs-header-inner">
+        <a class="logo" href="/"><span class="logo-mark">ir</span><span class="logo-text">iRunner</span></a>
+        <span class="docs-label">Docs</span>
+        <nav class="docs-header-nav">
+          <a href="/docs">Home</a>
+          <a href="/docs/quickstart">Quickstart</a>
+          <a href="https://github.com/irunner-io/ir">GitHub</a>
+        </nav>
+      </div>
+    </header>
+    <div class="docs-layout">
+      <aside class="docs-sidebar">
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Getting started</div>
+          <a class="sidebar-link" href="/docs">Overview</a>
+          <a class="sidebar-link" href="/docs/quickstart">Quickstart</a>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Compute</div>
+          <a class="sidebar-link" href="/docs/compute/ec2">EC2 runners</a>
+          <a class="sidebar-link" href="/docs/compute/ecs">ECS Fargate</a>
+          <a class="sidebar-link" href="/docs/compute/eks">EKS pods</a>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Features</div>
+          <a class="sidebar-link" href="/docs/features/pools-and-labels">Pools &amp; labels</a>
+          <a class="sidebar-link" href="/docs/features/label-patterns">Label patterns</a>
+          <a class="sidebar-link" href="/docs/features/warm-pools">Warm pools</a>
+          <a class="sidebar-link" href="/docs/features/spot-instances">Spot instances</a>
+          <a class="sidebar-link" href="/docs/features/s3-cache">S3 cache</a>
+          <a class="sidebar-link" href="/docs/features/docker-layer-cache">Docker layer cache</a>
+          <a class="sidebar-link" href="/docs/features/custom-images">Custom images</a>
+          <a class="sidebar-link" href="/docs/features/arm64">ARM64 / Graviton</a>
+          <a class="sidebar-link" href="/docs/features/ephemeral-runners">Ephemeral runners</a>
+          <a class="sidebar-link" href="/docs/features/cost-tracking">Per-job cost tracking</a>
+          <a class="sidebar-link" href="/docs/features/observability">Observability</a>
+          <a class="sidebar-link" href="/docs/features/air-gap">Air-gap &amp; licensing</a>
+          <a class="sidebar-link active" href="/docs/features/security">Security model</a>
+          <a class="sidebar-link" href="/docs/features/multi-platform">Multi-platform support</a>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Operations</div>
+          <a class="sidebar-link" href="/docs/operations/deployment">Deployment</a>
+          <a class="sidebar-link" href="/docs/operations/upgrades">Upgrades</a>
+          <a class="sidebar-link" href="/docs/operations/monitoring">Monitoring</a>
+          <a class="sidebar-link" href="/docs/operations/troubleshooting">Troubleshooting</a>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Reference</div>
+          <a class="sidebar-link" href="/docs/reference/config">config.yaml</a>
+          <a class="sidebar-link" href="/docs/reference/cli">CLI reference</a>
+          <a class="sidebar-link" href="/docs/reference/api">API endpoints</a>
+          <a class="sidebar-link" href="/docs/reference/changelog">Changelog</a>
+        </div>
+      </aside>
+      <main class="docs-content">
+        <nav class="breadcrumbs">
+          <a href="/docs">Docs</a><span class="sep">/</span>Features<span class="sep">/</span>Security model
+        </nav>
+        <article class="article">
+          <h1>Security Model</h1>
+          <p class="article-intro">iRunner is designed with a minimal attack surface. A single public endpoint (HMAC-verified webhook), default-deny ALB rules, private internal communication, ephemeral runners, and least-privilege IAM roles form the security foundation.</p>
+
+          <h2>Architecture overview</h2>
+          <p>The security model is built on defense-in-depth principles:</p>
+          <ul>
+            <li><strong>Single public surface:</strong> Only the webhook endpoint is exposed to the internet</li>
+            <li><strong>HMAC verification:</strong> Every webhook payload is verified against the shared secret</li>
+            <li><strong>Default deny:</strong> ALB returns 403 for all paths except the webhook</li>
+            <li><strong>Private networking:</strong> All internal communication happens over private DNS</li>
+            <li><strong>Ephemeral compute:</strong> No persistent attack surface on runner infrastructure</li>
+          </ul>
+
+          <h2>Network security</h2>
+
+          <h3>ALB configuration</h3>
+          <p>The Application Load Balancer has two rules:</p>
+          <table>
+            <tr><th>Priority</th><th>Condition</th><th>Action</th></tr>
+            <tr><td>1</td><td><code>POST /github/webhook</code></td><td>Forward to control plane target group</td></tr>
+            <tr><td>Default</td><td>All other requests</td><td>Return 403 (fixed response)</td></tr>
+          </table>
+          <p>This means port scanning, path enumeration, and other reconnaissance techniques return nothing useful to an attacker.</p>
+
+          <h3>Internal communication</h3>
+          <p>Components communicate via AWS Cloud Map (private DNS within the VPC):</p>
+          <ul>
+            <li>Control plane to runners: private subnet, security group restricted</li>
+            <li>Runners to cache service: private DNS (<code>cache.ir.internal</code>)</li>
+            <li>Control plane to DynamoDB/SQS/S3: VPC endpoints (no internet traversal)</li>
+          </ul>
+
+          <h3>Optional WAF</h3>
+          <p>For additional protection, attach AWS WAF to the ALB:</p>
+          <div class="code-block">
+            <div class="code-block-header">WAF configuration options</div>
+            <pre><code># IP allowlisting (restrict to GitHub webhook IPs)
+# GitHub publishes their webhook IP ranges at:
+# https://api.github.com/meta (hooks field)
+
+# Rate limiting
+# Limit webhook requests to prevent abuse
+
+# Geographic restrictions
+# Block traffic from regions where you don't operate</code></pre>
+          </div>
+
+          <h2>Webhook verification</h2>
+          <p>Every incoming webhook is verified using HMAC-SHA256:</p>
+          <ol>
+            <li>GitHub signs the payload with your webhook secret</li>
+            <li>The signature is sent in the <code>X-Hub-Signature-256</code> header</li>
+            <li>iRunner recomputes the HMAC and compares (constant-time comparison)</li>
+            <li>Invalid signatures are rejected with 401 &mdash; no further processing occurs</li>
+          </ol>
+
+          <div class="callout callout-note">
+            <div class="callout-title">Note</div>
+            <p>The webhook secret is stored in AWS Secrets Manager and never written to disk or logged. It is loaded into memory at control plane startup.</p>
+          </div>
+
+          <h2>IAM roles (least privilege)</h2>
+          <p>Each component has its own IAM role with minimal permissions:</p>
+
+          <h3>Control plane role</h3>
+          <table>
+            <tr><th>Permission</th><th>Resource</th><th>Purpose</th></tr>
+            <tr><td><code>ec2:RunInstances</code></td><td>Specific subnets/SGs</td><td>Launch runners</td></tr>
+            <tr><td><code>ec2:TerminateInstances</code></td><td>Tagged instances only</td><td>Cleanup runners</td></tr>
+            <tr><td><code>ecs:RunTask</code></td><td>Runner task definition</td><td>Launch Fargate tasks</td></tr>
+            <tr><td><code>dynamodb:*</code></td><td>ir-* tables only</td><td>Job state management</td></tr>
+            <tr><td><code>sqs:*</code></td><td>ir-* queues only</td><td>Job queue processing</td></tr>
+            <tr><td><code>secretsmanager:GetSecretValue</code></td><td>ir-* secrets only</td><td>Read credentials</td></tr>
+            <tr><td><code>s3:GetObject</code></td><td>Config bucket</td><td>Read config.yaml</td></tr>
+          </table>
+
+          <h3>Runner role</h3>
+          <table>
+            <tr><th>Permission</th><th>Resource</th><th>Purpose</th></tr>
+            <tr><td><code>s3:GetObject</code>, <code>s3:PutObject</code></td><td>Cache bucket</td><td>Cache read/write</td></tr>
+            <tr><td><code>ecr:GetAuthorizationToken</code></td><td>*</td><td>Docker image pull</td></tr>
+            <tr><td><code>ecr:BatchGetImage</code></td><td>Runner ECR repos</td><td>Layer cache</td></tr>
+            <tr><td><code>logs:PutLogEvents</code></td><td>Runner log group</td><td>Send logs</td></tr>
+          </table>
+
+          <h2>Secrets management</h2>
+          <p>All sensitive values are stored in AWS Secrets Manager:</p>
+          <ul>
+            <li><strong>GitHub App private key:</strong> Used to generate installation tokens</li>
+            <li><strong>Webhook secret:</strong> Used for HMAC verification</li>
+            <li><strong>License key:</strong> Validates entitlements</li>
+          </ul>
+          <p>Secrets are never written to environment variables in plaintext (except within the control plane process memory), never logged, and never stored on disk.</p>
+
+          <h2>Ephemeral runner security</h2>
+          <p>The ephemeral model provides strong isolation guarantees:</p>
+          <ul>
+            <li>Runners use JIT (just-in-time) registration tokens valid for a single use</li>
+            <li>No long-lived runner tokens exist in the system</li>
+            <li>Each runner has a unique, short-lived GitHub token scoped to the specific job</li>
+            <li>The compute resource is destroyed immediately after job completion</li>
+            <li>No persistent filesystem, no surviving processes, no network presence after teardown</li>
+          </ul>
+
+          <h2>Supply chain security</h2>
+          <ul>
+            <li>iRunner binaries are signed and distributed via S3 with integrity verification</li>
+            <li>Base AMIs and container images are built from minimal, audited sources</li>
+            <li>CloudFormation templates are versioned and published with checksums</li>
+            <li>No third-party dependencies at runtime (single static Go binary)</li>
+          </ul>
+
+          <h2>Security hardening checklist</h2>
+          <ul>
+            <li>Restrict ALB security group inbound to GitHub webhook IP ranges only</li>
+            <li>Enable AWS WAF with rate limiting on the ALB</li>
+            <li>Use VPC endpoints for all AWS service access (no internet required for internal traffic)</li>
+            <li>Enable CloudTrail for IAM audit logging</li>
+            <li>Rotate the webhook secret periodically</li>
+            <li>Use separate AWS accounts for production and development iRunner deployments</li>
+            <li>Enable GuardDuty for anomaly detection on the iRunner VPC</li>
+          </ul>
+
+          <div class="page-nav">
+            <a href="/docs/features/air-gap">&larr; Air-gap &amp; licensing</a>
+            <a href="/docs/features/multi-platform">Multi-platform support &rarr;</a>
+          </div>
+        </article>
+      </main>
+    </div>
+  </body>
+</html>

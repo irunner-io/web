@@ -1,0 +1,327 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>config.yaml — iRunner Docs</title>
+    <link rel="stylesheet" href="../../docs.css">
+  </head>
+  <body>
+    <header class="docs-header">
+      <div class="docs-header-inner">
+        <a class="logo" href="/"><span class="logo-mark">ir</span><span class="logo-text">iRunner</span></a>
+        <span class="docs-label">Docs</span>
+        <nav class="docs-header-nav">
+          <a href="/docs">Home</a>
+          <a href="/docs/quickstart">Quickstart</a>
+          <a href="https://github.com/irunner-io/ir">GitHub</a>
+        </nav>
+      </div>
+    </header>
+    <div class="docs-layout">
+      <aside class="docs-sidebar">
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Getting started</div>
+          <a class="sidebar-link" href="/docs">Overview</a>
+          <a class="sidebar-link" href="/docs/quickstart">Quickstart</a>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Compute</div>
+          <a class="sidebar-link" href="/docs/compute/ec2">EC2 runners</a>
+          <a class="sidebar-link" href="/docs/compute/ecs">ECS Fargate</a>
+          <a class="sidebar-link" href="/docs/compute/eks">EKS pods</a>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Features</div>
+          <a class="sidebar-link" href="/docs/features/pools-and-labels">Pools &amp; labels</a>
+          <a class="sidebar-link" href="/docs/features/label-patterns">Label patterns</a>
+          <a class="sidebar-link" href="/docs/features/warm-pools">Warm pools</a>
+          <a class="sidebar-link" href="/docs/features/spot-instances">Spot instances</a>
+          <a class="sidebar-link" href="/docs/features/s3-cache">S3 cache</a>
+          <a class="sidebar-link" href="/docs/features/docker-layer-cache">Docker layer cache</a>
+          <a class="sidebar-link" href="/docs/features/custom-images">Custom images</a>
+          <a class="sidebar-link" href="/docs/features/arm64">ARM64 / Graviton</a>
+          <a class="sidebar-link" href="/docs/features/ephemeral-runners">Ephemeral runners</a>
+          <a class="sidebar-link" href="/docs/features/cost-tracking">Per-job cost tracking</a>
+          <a class="sidebar-link" href="/docs/features/observability">Observability</a>
+          <a class="sidebar-link" href="/docs/features/air-gap">Air-gap &amp; licensing</a>
+          <a class="sidebar-link" href="/docs/features/security">Security model</a>
+          <a class="sidebar-link" href="/docs/features/multi-platform">Multi-platform support</a>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Operations</div>
+          <a class="sidebar-link" href="/docs/operations/deployment">Deployment</a>
+          <a class="sidebar-link" href="/docs/operations/upgrades">Upgrades</a>
+          <a class="sidebar-link" href="/docs/operations/monitoring">Monitoring</a>
+          <a class="sidebar-link" href="/docs/operations/troubleshooting">Troubleshooting</a>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Reference</div>
+          <a class="sidebar-link active" href="/docs/reference/config">config.yaml</a>
+          <a class="sidebar-link" href="/docs/reference/cli">CLI reference</a>
+          <a class="sidebar-link" href="/docs/reference/api">API endpoints</a>
+          <a class="sidebar-link" href="/docs/reference/changelog">Changelog</a>
+        </div>
+      </aside>
+      <main class="docs-content">
+        <nav class="breadcrumbs">
+          <a href="/docs">Docs</a><span class="sep">/</span>Reference<span class="sep">/</span>config.yaml
+        </nav>
+        <article class="article">
+          <h1>config.yaml</h1>
+          <p class="article-intro">Complete reference for iRunner's configuration file. The control plane reads this from S3 on startup and watches for changes. All fields are documented with their defaults and constraints.</p>
+
+          <h2>server</h2>
+          <p>Control plane server settings.</p>
+          <table>
+            <tr><th>Field</th><th>Type</th><th>Default</th><th>Description</th></tr>
+            <tr><td><code>external_url</code></td><td>string</td><td>&mdash;</td><td>Internal DNS endpoint for the control plane (e.g. <code>http://control-plane.ir-west.internal:8080</code>). Used by runners to call back.</td></tr>
+            <tr><td><code>port</code></td><td>integer</td><td>8080</td><td>Port the control plane listens on.</td></tr>
+          </table>
+
+          <h2>github</h2>
+          <p>GitHub App credentials and configuration.</p>
+          <table>
+            <tr><th>Field</th><th>Type</th><th>Description</th></tr>
+            <tr><td><code>app_id</code></td><td>integer</td><td>GitHub App ID from the app settings page.</td></tr>
+            <tr><td><code>installation_id</code></td><td>integer</td><td>Installation ID for the target organization.</td></tr>
+            <tr><td><code>private_key_path</code></td><td>string</td><td>AWS Secrets Manager ARN containing the GitHub App private key PEM.</td></tr>
+            <tr><td><code>webhook_secret_path</code></td><td>string</td><td>AWS Secrets Manager ARN containing the webhook HMAC secret.</td></tr>
+            <tr><td><code>app_config_arn</code></td><td>string</td><td>Secrets Manager ARN for the full GitHub App configuration JSON (optional, used for automated installs).</td></tr>
+          </table>
+
+          <h2>aws</h2>
+          <p>AWS resource references created by the CloudFormation stack.</p>
+          <table>
+            <tr><th>Field</th><th>Type</th><th>Description</th></tr>
+            <tr><td><code>region</code></td><td>string</td><td>AWS region (e.g. <code>us-west-2</code>).</td></tr>
+            <tr><td><code>sqs.jobs_queue_url</code></td><td>string</td><td>SQS queue URL for incoming workflow_job events.</td></tr>
+            <tr><td><code>sqs.termination_queue_url</code></td><td>string</td><td>SQS queue URL for EC2 spot termination notices.</td></tr>
+            <tr><td><code>sqs.events_queue_url</code></td><td>string</td><td>SQS queue URL for internal lifecycle events.</td></tr>
+            <tr><td><code>dynamodb.jobs_table</code></td><td>string</td><td>DynamoDB table for job state tracking.</td></tr>
+            <tr><td><code>dynamodb.pools_table</code></td><td>string</td><td>DynamoDB table for pool capacity state.</td></tr>
+            <tr><td><code>dynamodb.locks_table</code></td><td>string</td><td>DynamoDB table for distributed locking.</td></tr>
+            <tr><td><code>s3.releases_bucket</code></td><td>string</td><td>S3 bucket containing agent binaries and config.</td></tr>
+            <tr><td><code>s3.agent_s3_key</code></td><td>string</td><td>S3 key for the runner agent binary.</td></tr>
+            <tr><td><code>s3.presign_ttl</code></td><td>duration</td><td>TTL for presigned S3 URLs (e.g. <code>15m</code>).</td></tr>
+          </table>
+
+          <h2>cache</h2>
+          <p>S3 build cache and Docker layer cache settings.</p>
+          <table>
+            <tr><th>Field</th><th>Type</th><th>Default</th><th>Description</th></tr>
+            <tr><td><code>enabled</code></td><td>bool</td><td>false</td><td>Enable the S3 cache service.</td></tr>
+            <tr><td><code>bucket</code></td><td>string</td><td>&mdash;</td><td>S3 bucket for build cache artifacts.</td></tr>
+            <tr><td><code>ttl_days</code></td><td>integer</td><td>7</td><td>Days before cache entries expire.</td></tr>
+            <tr><td><code>docker_bucket</code></td><td>string</td><td>&mdash;</td><td>S3 bucket for Docker layer cache (can be same as <code>bucket</code>).</td></tr>
+            <tr><td><code>docker_registry</code></td><td>string</td><td>&mdash;</td><td>ECR registry URL for cached Docker images.</td></tr>
+            <tr><td><code>docker_registry_ttl_days</code></td><td>integer</td><td>14</td><td>Days before Docker layer cache entries expire.</td></tr>
+          </table>
+
+          <h2>default_pool</h2>
+          <p>The pool used when a <code>runs-on</code> label doesn't match any <code>label_mappings</code> or <code>label_patterns</code>. Uses the same fields as entries under <code>pools</code>.</p>
+
+          <h2>pools</h2>
+          <p>Named pool definitions. Each pool configures a compute backend.</p>
+
+          <h3>EC2 pool fields</h3>
+          <table>
+            <tr><th>Field</th><th>Type</th><th>Default</th><th>Description</th></tr>
+            <tr><td><code>instance_type</code></td><td>string</td><td>&mdash;</td><td>EC2 instance type (e.g. <code>m7i.2xlarge</code>).</td></tr>
+            <tr><td><code>ami</code></td><td>string</td><td>&mdash;</td><td>AMI ID for the runner instance.</td></tr>
+            <tr><td><code>disk_size_gb</code></td><td>integer</td><td>50</td><td>Root EBS volume size in GB.</td></tr>
+            <tr><td><code>min_warm</code></td><td>integer</td><td>0</td><td>Minimum number of pre-warmed idle instances.</td></tr>
+            <tr><td><code>max_total</code></td><td>integer</td><td>10</td><td>Maximum total instances (warm + active).</td></tr>
+            <tr><td><code>spot_enabled</code></td><td>bool</td><td>false</td><td>Use EC2 Spot Instances for this pool.</td></tr>
+            <tr><td><code>os</code></td><td>string</td><td>linux</td><td>Operating system (<code>linux</code> or <code>windows</code>).</td></tr>
+            <tr><td><code>arch</code></td><td>string</td><td>amd64</td><td>CPU architecture (<code>amd64</code> or <code>arm64</code>).</td></tr>
+            <tr><td><code>subnets</code></td><td>[]string</td><td>&mdash;</td><td>Subnet IDs for instance placement.</td></tr>
+            <tr><td><code>security_groups</code></td><td>[]string</td><td>&mdash;</td><td>Security group IDs attached to instances.</td></tr>
+            <tr><td><code>instance_profile_arn</code></td><td>string</td><td>&mdash;</td><td>IAM instance profile ARN for the runner.</td></tr>
+            <tr><td><code>sudoers_extra</code></td><td>[]string</td><td>&mdash;</td><td>Additional sudoers entries for the runner user.</td></tr>
+            <tr><td><code>metrics_collector</code></td><td>string</td><td>&mdash;</td><td>Metrics agent to install (<code>cloudwatch</code> or <code>prometheus</code>).</td></tr>
+            <tr><td><code>packages</code></td><td>[]string</td><td>&mdash;</td><td>Extra packages to install at boot.</td></tr>
+          </table>
+
+          <h3>ECS pool fields</h3>
+          <p>Set <code>driver: ecs</code> to use ECS Fargate as the compute backend.</p>
+          <table>
+            <tr><th>Field</th><th>Type</th><th>Default</th><th>Description</th></tr>
+            <tr><td><code>driver</code></td><td>string</td><td>ec2</td><td>Set to <code>ecs</code> for Fargate pools.</td></tr>
+            <tr><td><code>ecs.cluster_arn</code></td><td>string</td><td>&mdash;</td><td>ECS cluster ARN to run tasks in.</td></tr>
+            <tr><td><code>ecs.image</code></td><td>string</td><td>&mdash;</td><td>Container image for the runner task.</td></tr>
+            <tr><td><code>ecs.execution_role_arn</code></td><td>string</td><td>&mdash;</td><td>IAM role for ECS task execution (image pull, logs).</td></tr>
+            <tr><td><code>ecs.task_role_arn</code></td><td>string</td><td>&mdash;</td><td>IAM role assumed by the running task.</td></tr>
+            <tr><td><code>ecs.size</code></td><td>string</td><td>&mdash;</td><td>Fargate size spec (e.g. <code>2vcpu-4gb</code>).</td></tr>
+            <tr><td><code>ecs.spot_enabled</code></td><td>bool</td><td>false</td><td>Use Fargate Spot capacity.</td></tr>
+            <tr><td><code>ecs.subnets</code></td><td>[]string</td><td>&mdash;</td><td>Subnet IDs for task placement.</td></tr>
+            <tr><td><code>ecs.security_groups</code></td><td>[]string</td><td>&mdash;</td><td>Security group IDs for the task ENI.</td></tr>
+            <tr><td><code>ecs.ephemeral_storage_gb</code></td><td>integer</td><td>21</td><td>Ephemeral storage in GB (21&ndash;200).</td></tr>
+          </table>
+
+          <h2>label_mappings</h2>
+          <p>Static map of <code>runs-on</code> label strings to pool names. Simple and fast lookup.</p>
+          <div class="code-block">
+            <div class="code-block-header">config.yaml</div>
+            <pre><code>label_mappings:
+  ir-small:
+    pool: small-ec2
+  ir-large:
+    pool: large-ec2
+  ir-fargate:
+    pool: ecs-default</code></pre>
+          </div>
+
+          <h2>label_patterns</h2>
+          <p>Regex-based label routing with optional constraints. Evaluated in order; first match wins.</p>
+          <table>
+            <tr><th>Field</th><th>Type</th><th>Description</th></tr>
+            <tr><td><code>pattern</code></td><td>string</td><td>Regex pattern matched against the <code>runs-on</code> label.</td></tr>
+            <tr><td><code>pool</code></td><td>string</td><td>Pool name to route matching jobs to.</td></tr>
+            <tr><td><code>constraints</code></td><td>object</td><td>Optional constraints: <code>max_concurrency</code>, <code>allowed_repos</code>.</td></tr>
+          </table>
+          <div class="code-block">
+            <div class="code-block-header">config.yaml</div>
+            <pre><code>label_patterns:
+  - pattern: "^ir-gpu-.*"
+    pool: gpu-pool
+    constraints:
+      max_concurrency: 4
+      allowed_repos:
+        - "org/ml-training"
+  - pattern: "^ir-arm-.*"
+    pool: arm64-pool</code></pre>
+          </div>
+
+          <h2>Complete example</h2>
+          <div class="code-block">
+            <div class="code-block-header">config.yaml</div>
+            <pre><code>server:
+  external_url: http://control-plane.ir-west.internal:8080
+  port: 8080
+
+github:
+  app_id: 123456
+  installation_id: 789012
+  private_key_path: arn:aws:secretsmanager:us-west-2:111111111111:secret:ir-west/github-app-private-key
+  webhook_secret_path: arn:aws:secretsmanager:us-west-2:111111111111:secret:ir-west/webhook-secret
+
+aws:
+  region: us-west-2
+  sqs:
+    jobs_queue_url: https://sqs.us-west-2.amazonaws.com/111111111111/ir-west-jobs
+    termination_queue_url: https://sqs.us-west-2.amazonaws.com/111111111111/ir-west-termination
+    events_queue_url: https://sqs.us-west-2.amazonaws.com/111111111111/ir-west-events
+  dynamodb:
+    jobs_table: ir-west-jobs
+    pools_table: ir-west-pools
+    locks_table: ir-west-locks
+  s3:
+    releases_bucket: ir-west-releases-111111111111
+    agent_s3_key: agent/ir-agent-linux-amd64
+    presign_ttl: 15m
+
+cache:
+  enabled: true
+  bucket: ir-west-cache-111111111111
+  ttl_days: 7
+  docker_bucket: ir-west-docker-cache-111111111111
+  docker_registry: 111111111111.dkr.ecr.us-west-2.amazonaws.com/ir-cache
+  docker_registry_ttl_days: 14
+
+default_pool:
+  instance_type: m7i.large
+  ami: ami-0abcdef1234567890
+  disk_size_gb: 50
+  min_warm: 1
+  max_total: 10
+  spot_enabled: false
+  os: linux
+  arch: amd64
+  subnets:
+    - subnet-aaa111
+    - subnet-bbb222
+  security_groups:
+    - sg-ccc333
+  instance_profile_arn: arn:aws:iam::111111111111:instance-profile/ir-west-runner
+
+pools:
+  large-ec2:
+    instance_type: m7i.2xlarge
+    ami: ami-0abcdef1234567890
+    disk_size_gb: 100
+    min_warm: 2
+    max_total: 20
+    spot_enabled: true
+    os: linux
+    arch: amd64
+    subnets:
+      - subnet-aaa111
+      - subnet-bbb222
+    security_groups:
+      - sg-ccc333
+    instance_profile_arn: arn:aws:iam::111111111111:instance-profile/ir-west-runner
+    packages:
+      - docker-ce
+      - docker-buildx-plugin
+
+  arm64-pool:
+    instance_type: m7g.xlarge
+    ami: ami-0arm64example
+    disk_size_gb: 50
+    min_warm: 1
+    max_total: 8
+    spot_enabled: true
+    os: linux
+    arch: arm64
+    subnets:
+      - subnet-aaa111
+    security_groups:
+      - sg-ccc333
+    instance_profile_arn: arn:aws:iam::111111111111:instance-profile/ir-west-runner
+
+  ecs-default:
+    driver: ecs
+    ecs:
+      cluster_arn: arn:aws:ecs:us-west-2:111111111111:cluster/ir-west-runners
+      image: 111111111111.dkr.ecr.us-west-2.amazonaws.com/ir-runner:latest
+      execution_role_arn: arn:aws:iam::111111111111:role/ir-west-ecs-execution
+      task_role_arn: arn:aws:iam::111111111111:role/ir-west-ecs-task
+      size: 2vcpu-4gb
+      spot_enabled: true
+      subnets:
+        - subnet-ddd444
+      security_groups:
+        - sg-eee555
+      ephemeral_storage_gb: 50
+
+label_mappings:
+  ir-small:
+    pool: default
+  ir-large:
+    pool: large-ec2
+  ir-arm:
+    pool: arm64-pool
+  ir-fargate:
+    pool: ecs-default
+
+label_patterns:
+  - pattern: "^ir-gpu-.*"
+    pool: gpu-pool
+    constraints:
+      max_concurrency: 4
+      allowed_repos:
+        - "org/ml-training"
+  - pattern: "^ir-arm-.*"
+    pool: arm64-pool</code></pre>
+          </div>
+
+          <div class="page-nav">
+            <a href="/docs/operations/troubleshooting">&larr; Troubleshooting</a>
+            <a href="/docs/reference/cli">CLI reference &rarr;</a>
+          </div>
+        </article>
+      </main>
+    </div>
+  </body>
+</html>

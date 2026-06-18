@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Quickstart — iRunner Docs</title>
+    <link rel="stylesheet" href="../docs.css">
+  </head>
+  <body>
+    <header class="docs-header">
+      <div class="docs-header-inner">
+        <a class="logo" href="/"><span class="logo-mark">ir</span><span class="logo-text">iRunner</span></a>
+        <span class="docs-label">Docs</span>
+        <nav class="docs-header-nav">
+          <a href="/docs">Home</a>
+          <a href="/docs/quickstart">Quickstart</a>
+          <a href="https://github.com/irunner-io/ir">GitHub</a>
+        </nav>
+      </div>
+    </header>
+    <div class="docs-layout">
+      <aside class="docs-sidebar">
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Getting started</div>
+          <a class="sidebar-link" href="/docs">Overview</a>
+          <a class="sidebar-link active" href="/docs/quickstart">Quickstart</a>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Compute</div>
+          <a class="sidebar-link" href="/docs/compute/ec2">EC2 runners</a>
+          <a class="sidebar-link" href="/docs/compute/ecs">ECS Fargate</a>
+          <a class="sidebar-link" href="/docs/compute/eks">EKS pods</a>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Features</div>
+          <a class="sidebar-link" href="/docs/features/pools-and-labels">Pools &amp; labels</a>
+          <a class="sidebar-link" href="/docs/features/label-patterns">Label patterns</a>
+          <a class="sidebar-link" href="/docs/features/warm-pools">Warm pools</a>
+          <a class="sidebar-link" href="/docs/features/spot-instances">Spot instances</a>
+          <a class="sidebar-link" href="/docs/features/s3-cache">S3 cache</a>
+          <a class="sidebar-link" href="/docs/features/docker-layer-cache">Docker layer cache</a>
+          <a class="sidebar-link" href="/docs/features/custom-images">Custom images</a>
+          <a class="sidebar-link" href="/docs/features/arm64">ARM64 / Graviton</a>
+          <a class="sidebar-link" href="/docs/features/ephemeral-runners">Ephemeral runners</a>
+          <a class="sidebar-link" href="/docs/features/cost-tracking">Per-job cost tracking</a>
+          <a class="sidebar-link" href="/docs/features/observability">Observability</a>
+          <a class="sidebar-link" href="/docs/features/air-gap">Air-gap &amp; licensing</a>
+          <a class="sidebar-link" href="/docs/features/security">Security model</a>
+          <a class="sidebar-link" href="/docs/features/multi-platform">Multi-platform support</a>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Operations</div>
+          <a class="sidebar-link" href="/docs/operations/deployment">Deployment</a>
+          <a class="sidebar-link" href="/docs/operations/upgrades">Upgrades</a>
+          <a class="sidebar-link" href="/docs/operations/monitoring">Monitoring</a>
+          <a class="sidebar-link" href="/docs/operations/troubleshooting">Troubleshooting</a>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Reference</div>
+          <a class="sidebar-link" href="/docs/reference/config">config.yaml</a>
+          <a class="sidebar-link" href="/docs/reference/cli">CLI reference</a>
+          <a class="sidebar-link" href="/docs/reference/api">API endpoints</a>
+          <a class="sidebar-link" href="/docs/reference/changelog">Changelog</a>
+        </div>
+      </aside>
+      <main class="docs-content">
+        <nav class="breadcrumbs">
+          <a href="/docs">Docs</a><span class="sep">/</span>Getting started<span class="sep">/</span>Quickstart
+        </nav>
+        <article class="article">
+          <h1>Quickstart</h1>
+          <p class="article-intro">Deploy iRunner and run your first build in 15 minutes. This guide walks you through deploying the CloudFormation stack, installing the GitHub App, and triggering your first job.</p>
+
+          <h2>Prerequisites</h2>
+          <ul>
+            <li>An AWS account with permission to create CloudFormation stacks</li>
+            <li>A GitHub organization (or personal account) with admin access</li>
+            <li>AWS CLI v2 installed and configured</li>
+          </ul>
+
+          <h2>Step 1: Deploy the CloudFormation stack</h2>
+          <p>The stack creates all required infrastructure: VPC, subnets, ALB, ECS control plane, SQS queues, DynamoDB tables, S3 buckets, and IAM roles.</p>
+          <div class="code-block">
+            <div class="code-block-header">Terminal</div>
+            <pre><code>aws cloudformation create-stack \
+  --stack-name ir-controlplane \
+  --template-url https://ir-releases.s3.amazonaws.com/cloudformation/latest.yaml \
+  --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
+  --parameters \
+    ParameterKey=Prefix,ParameterValue=ir-west \
+    ParameterKey=VpcCidr,ParameterValue=10.0.0.0/16</code></pre>
+          </div>
+          <p>Wait for the stack to complete (~5 minutes):</p>
+          <div class="code-block">
+            <div class="code-block-header">Terminal</div>
+            <pre><code>aws cloudformation wait stack-create-complete --stack-name ir-controlplane</code></pre>
+          </div>
+
+          <h2>Step 2: Create a GitHub App</h2>
+          <p>iRunner uses a private GitHub App for secure webhook delivery and runner registration.</p>
+          <ol>
+            <li>Go to your GitHub organization → Settings → Developer settings → GitHub Apps → New GitHub App</li>
+            <li>Configure the app:
+              <ul>
+                <li><strong>Name:</strong> iRunner (your-org)</li>
+                <li><strong>Webhook URL:</strong> the <code>WebhookEndpoint</code> stack output</li>
+                <li><strong>Webhook secret:</strong> generate a strong random string</li>
+              </ul>
+            </li>
+            <li>Set permissions:
+              <table>
+                <tr><th>Scope</th><th>Permission</th><th>Access</th></tr>
+                <tr><td>Repository</td><td>Actions</td><td>Read</td></tr>
+                <tr><td>Repository</td><td>Administration</td><td>Read &amp; Write</td></tr>
+                <tr><td>Repository</td><td>Metadata</td><td>Read</td></tr>
+                <tr><td>Organization</td><td>Self-hosted runners</td><td>Read &amp; Write</td></tr>
+              </table>
+            </li>
+            <li>Subscribe to the <code>workflow_job</code> event</li>
+            <li>Create the app, then install it on your organization</li>
+          </ol>
+
+          <h2>Step 3: Store secrets</h2>
+          <p>Store the GitHub App private key and webhook secret in AWS Secrets Manager:</p>
+          <div class="code-block">
+            <div class="code-block-header">Terminal</div>
+            <pre><code># Store the private key
+aws secretsmanager create-secret \
+  --name ir-west/github-app-private-key \
+  --secret-string file://private-key.pem
+
+# Store the webhook secret
+aws secretsmanager create-secret \
+  --name ir-west/webhook-secret \
+  --secret-string "your-webhook-secret"</code></pre>
+          </div>
+
+          <h2>Step 4: Generate and upload config</h2>
+          <p>Use the config generator to create your <code>config.yaml</code>:</p>
+          <div class="code-block">
+            <div class="code-block-header">Terminal</div>
+            <pre><code>./deploy/generate-config.sh \
+  --stack-name ir-controlplane \
+  --github-app-id 123456 \
+  --github-installation-id 789012 \
+  | aws s3 cp - s3://ir-west-releases-ACCOUNT_ID/config/config.yaml</code></pre>
+          </div>
+
+          <h2>Step 5: Update your workflow</h2>
+          <p>Change the <code>runs-on</code> label in your workflow file:</p>
+          <div class="code-block">
+            <div class="code-block-header">.github/workflows/ci.yml</div>
+            <pre><code>jobs:
+  build:
+    runs-on: ir-cold    # any configured label
+    steps:
+      - uses: actions/checkout@v4
+      - run: make test</code></pre>
+          </div>
+
+          <h2>Step 6: Trigger a build</h2>
+          <div class="code-block">
+            <div class="code-block-header">Terminal</div>
+            <pre><code>git commit --allow-empty -m "test: trigger iRunner"
+git push</code></pre>
+          </div>
+          <p>Watch the GitHub Actions UI — the job should be picked up within seconds.</p>
+
+          <h2>Verify the deployment</h2>
+          <p>Check control plane status from within your VPC:</p>
+          <div class="code-block">
+            <div class="code-block-header">Terminal</div>
+            <pre><code>curl -s http://control-plane.ir-west.internal:8080/internal/status | jq .</code></pre>
+          </div>
+
+          <div class="callout callout-tip">
+            <div class="callout-title">Tip</div>
+            <p>The control plane's internal endpoint is only accessible from within the VPC. Use a bastion host or SSM Session Manager to reach it.</p>
+          </div>
+
+          <div class="page-nav">
+            <a href="/docs">&larr; Overview</a>
+            <a href="/docs/features/pools-and-labels">Pools &amp; labels &rarr;</a>
+          </div>
+        </article>
+      </main>
+    </div>
+  </body>
+</html>

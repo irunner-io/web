@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>ARM64 / Graviton — iRunner Docs</title>
+    <link rel="stylesheet" href="../../docs.css">
+  </head>
+  <body>
+    <header class="docs-header">
+      <div class="docs-header-inner">
+        <a class="logo" href="/"><span class="logo-mark">ir</span><span class="logo-text">iRunner</span></a>
+        <span class="docs-label">Docs</span>
+        <nav class="docs-header-nav">
+          <a href="/docs">Home</a>
+          <a href="/docs/quickstart">Quickstart</a>
+          <a href="https://github.com/irunner-io/ir">GitHub</a>
+        </nav>
+      </div>
+    </header>
+    <div class="docs-layout">
+      <aside class="docs-sidebar">
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Getting started</div>
+          <a class="sidebar-link" href="/docs">Overview</a>
+          <a class="sidebar-link" href="/docs/quickstart">Quickstart</a>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Compute</div>
+          <a class="sidebar-link" href="/docs/compute/ec2">EC2 runners</a>
+          <a class="sidebar-link" href="/docs/compute/ecs">ECS Fargate</a>
+          <a class="sidebar-link" href="/docs/compute/eks">EKS pods</a>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Features</div>
+          <a class="sidebar-link" href="/docs/features/pools-and-labels">Pools &amp; labels</a>
+          <a class="sidebar-link" href="/docs/features/label-patterns">Label patterns</a>
+          <a class="sidebar-link" href="/docs/features/warm-pools">Warm pools</a>
+          <a class="sidebar-link" href="/docs/features/spot-instances">Spot instances</a>
+          <a class="sidebar-link" href="/docs/features/s3-cache">S3 cache</a>
+          <a class="sidebar-link" href="/docs/features/docker-layer-cache">Docker layer cache</a>
+          <a class="sidebar-link" href="/docs/features/custom-images">Custom images</a>
+          <a class="sidebar-link active" href="/docs/features/arm64">ARM64 / Graviton</a>
+          <a class="sidebar-link" href="/docs/features/ephemeral-runners">Ephemeral runners</a>
+          <a class="sidebar-link" href="/docs/features/cost-tracking">Per-job cost tracking</a>
+          <a class="sidebar-link" href="/docs/features/observability">Observability</a>
+          <a class="sidebar-link" href="/docs/features/air-gap">Air-gap &amp; licensing</a>
+          <a class="sidebar-link" href="/docs/features/security">Security model</a>
+          <a class="sidebar-link" href="/docs/features/multi-platform">Multi-platform support</a>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Operations</div>
+          <a class="sidebar-link" href="/docs/operations/deployment">Deployment</a>
+          <a class="sidebar-link" href="/docs/operations/upgrades">Upgrades</a>
+          <a class="sidebar-link" href="/docs/operations/monitoring">Monitoring</a>
+          <a class="sidebar-link" href="/docs/operations/troubleshooting">Troubleshooting</a>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Reference</div>
+          <a class="sidebar-link" href="/docs/reference/config">config.yaml</a>
+          <a class="sidebar-link" href="/docs/reference/cli">CLI reference</a>
+          <a class="sidebar-link" href="/docs/reference/api">API endpoints</a>
+          <a class="sidebar-link" href="/docs/reference/changelog">Changelog</a>
+        </div>
+      </aside>
+      <main class="docs-content">
+        <nav class="breadcrumbs">
+          <a href="/docs">Docs</a><span class="sep">/</span>Features<span class="sep">/</span>ARM64 / Graviton
+        </nav>
+        <article class="article">
+          <h1>ARM64 / Graviton</h1>
+          <p class="article-intro">Run CI jobs on AWS Graviton (ARM64) processors for up to 20% better price-performance compared to equivalent x64 instances. Same workflow syntax &mdash; just a different label.</p>
+
+          <h2>Why ARM64?</h2>
+          <p>AWS Graviton processors offer several advantages for CI workloads:</p>
+          <ul>
+            <li><strong>Cost:</strong> ~20% cheaper than equivalent x64 instances</li>
+            <li><strong>Performance:</strong> Competitive or better single-threaded performance for compiled languages</li>
+            <li><strong>Native ARM builds:</strong> Build ARM Docker images and binaries without emulation</li>
+            <li><strong>Production parity:</strong> If you deploy to Graviton in production, test on Graviton in CI</li>
+          </ul>
+
+          <h2>Configuration</h2>
+          <p>Set <code>arch: arm64</code> in your pool definition and use a Graviton instance type:</p>
+          <div class="code-block">
+            <div class="code-block-header">config.yaml</div>
+            <pre><code>pools:
+  - name: linux-arm64
+    platform: ec2
+    arch: arm64
+    instance_type: m7g.2xlarge      # Graviton3
+    ami: ami-0arm64-runner-base     # ARM64-specific AMI
+    disk_size_gb: 100
+    subnet_ids:
+      - subnet-aaa111
+      - subnet-bbb222
+    security_group_ids:
+      - sg-runners-001
+    spot_enabled: true
+
+  - name: linux-arm64-large
+    platform: ec2
+    arch: arm64
+    instance_type: c7g.4xlarge      # Graviton3 compute-optimized
+    ami: ami-0arm64-runner-base
+    disk_size_gb: 200
+    subnet_ids:
+      - subnet-aaa111
+      - subnet-bbb222
+    security_group_ids:
+      - sg-runners-001
+
+label_mappings:
+  ir-arm64: linux-arm64
+  ir-arm64-large: linux-arm64-large</code></pre>
+          </div>
+
+          <h2>Graviton instance types</h2>
+          <p>Common Graviton instance types for CI workloads:</p>
+          <table>
+            <tr><th>Instance type</th><th>vCPU</th><th>Memory</th><th>Use case</th></tr>
+            <tr><td>t4g.large</td><td>2</td><td>8 GB</td><td>Light CI (linting, small tests)</td></tr>
+            <tr><td>m7g.xlarge</td><td>4</td><td>16 GB</td><td>General-purpose builds</td></tr>
+            <tr><td>m7g.2xlarge</td><td>8</td><td>32 GB</td><td>Medium builds and test suites</td></tr>
+            <tr><td>c7g.2xlarge</td><td>8</td><td>16 GB</td><td>Compute-intensive compilation</td></tr>
+            <tr><td>c7g.4xlarge</td><td>16</td><td>32 GB</td><td>Large parallel builds</td></tr>
+            <tr><td>m7g.4xlarge</td><td>16</td><td>64 GB</td><td>Memory-heavy test suites</td></tr>
+          </table>
+
+          <h2>Workflow usage</h2>
+          <p>Using ARM64 runners is as simple as changing the label:</p>
+          <div class="code-block">
+            <div class="code-block-header">.github/workflows/ci.yml</div>
+            <pre><code>jobs:
+  test-x64:
+    runs-on: ir-large
+    steps:
+      - uses: actions/checkout@v4
+      - run: make test
+
+  test-arm64:
+    runs-on: ir-arm64
+    steps:
+      - uses: actions/checkout@v4
+      - run: make test
+
+  # Build multi-arch Docker image
+  docker-multiarch:
+    runs-on: ir-arm64
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v5
+        with:
+          context: .
+          platforms: linux/arm64
+          push: true
+          tags: myapp:latest-arm64</code></pre>
+          </div>
+
+          <h2>Important considerations</h2>
+
+          <h3>ARM-specific AMI required</h3>
+          <p>You cannot use an x64 AMI on a Graviton instance (and vice versa). The <code>ami</code> field must reference an ARM64-compatible AMI. iRunner publishes separate base AMIs for each architecture.</p>
+
+          <h3>Software compatibility</h3>
+          <p>Most CI tools support ARM64 natively:</p>
+          <ul>
+            <li>Go, Rust, Java, Python, Node.js &mdash; all have native ARM64 support</li>
+            <li>Docker &mdash; runs natively on ARM64</li>
+            <li>GitHub Actions runner &mdash; official ARM64 builds available</li>
+          </ul>
+          <p>However, some tools may not have ARM64 binaries. Check your toolchain before switching.</p>
+
+          <h3>ECS Fargate ARM64</h3>
+          <p>Fargate also supports ARM64 via the <code>ARM64</code> runtime platform:</p>
+          <div class="code-block">
+            <div class="code-block-header">config.yaml</div>
+            <pre><code>pools:
+  - name: fargate-arm64
+    platform: ecs
+    arch: arm64
+    cpu: 4096
+    memory: 8192
+    image: "123456789012.dkr.ecr.us-west-2.amazonaws.com/runner:latest-arm64"
+
+label_mappings:
+  ir-ecs-arm64: fargate-arm64</code></pre>
+          </div>
+
+          <div class="callout callout-note">
+            <div class="callout-title">Note</div>
+            <p>When using ARM64 with ECS Fargate, ensure your container image is built for the <code>linux/arm64</code> platform. Multi-arch images (built with <code>docker buildx</code>) work seamlessly.</p>
+          </div>
+
+          <div class="page-nav">
+            <a href="/docs/features/custom-images">&larr; Custom images</a>
+            <a href="/docs/features/ephemeral-runners">Ephemeral runners &rarr;</a>
+          </div>
+        </article>
+      </main>
+    </div>
+  </body>
+</html>
