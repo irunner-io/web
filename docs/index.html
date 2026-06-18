@@ -102,27 +102,32 @@
               <th>Backend</th>
               <th>Best for</th>
               <th>Cold start</th>
+              <th>Warm start</th>
               <th>Isolation</th>
             </tr>
             <tr>
               <td><a href="/web/docs/compute/ec2">EC2</a></td>
               <td>Docker builds, GPU, large disk, custom kernels</td>
-              <td>45–90s (or instant with warm pools)</td>
+              <td>45–90s</td>
+              <td>&lt;5s (pre-provisioned VM claimed instantly)</td>
               <td>Full VM</td>
             </tr>
             <tr>
               <td><a href="/web/docs/compute/ecs">ECS Fargate</a></td>
               <td>Fast, lightweight jobs, no AMI management</td>
               <td>15–30s</td>
+              <td>N/A (Fargate provisions per-task)</td>
               <td>Container</td>
             </tr>
             <tr>
               <td><a href="/web/docs/compute/eks">EKS</a></td>
               <td>Teams with existing Kubernetes clusters</td>
-              <td>10–20s (on warm nodes)</td>
+              <td>30–60s (node scale-up)</td>
+              <td>&lt;10s (pod scheduled on warm node)</td>
               <td>Pod</td>
             </tr>
           </table>
+          <p>Cold start applies when no capacity is available and new infrastructure must be provisioned. Warm start applies when pre-provisioned capacity exists — either via <a href="/web/docs/features/warm-pools">warm pools</a> (EC2) or pre-scaled nodes (EKS). See <a href="/web/docs/features/warm-pools">Warm pools</a> for configuration.</p>
 
           <h2>Quick links</h2>
           <ul>
